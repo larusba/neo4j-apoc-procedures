@@ -1,0 +1,138 @@
+Bolt procedures allows to accessing other databases via bolt protocol.
+
+[cols="3m,2"]
+|===
+| CALL apoc.bolt.execute(urlOrKey, statement, params, config) YIELD row  | access to other databases via bolt for read and write
+| CALL apoc.bolt.load(urlOrKey, statement, params, config) YIELD row | access to other databases via bolt for read
+|===
+
+**urlOrKey** param allows users to decide if send url by apoc or if put it into neo4j.conf file.
+
+* **apoc** : write the complete url in his right position on the apoc.
+
+[source,cypher]
+----
+call apoc.bolt.execute("bolt://user:password@localhost:7687","match(p:Person {name:{name}}) return p", {name:'Michael'})
+----
+
+* **neo4j.conf** : here the are two choices:
+
+1) **complete url**: write the complete url with the param apoc.bolt.url;
+
+.apoc
+
+[source,cypher]
+----
+call apoc.bolt.execute("","match(p:Person {name:{name}}) return p", {name:'Michael'})
+----
+
+.neo4jConf
+
+[source,txt]
+----
+//simple url
+apoc.bolt.url=bolt://neo4j:test@localhost:7687
+----
+
+
+2) **by key**: set the url with a personal key apoc.bolt.yourKey.url; in this case in the apoc on the url param user has to insert the key.
+
+.apoc
+
+[source,cypher]
+----
+call apoc.bolt.execute("test","match(p:Person {name:{name}}) return p", {name:'Michael'})
+----
+
+.neo4jConf
+
+[source,txt]
+----
+//with key
+apoc.bolt.test.url=bolt://user:password@localhost:7687
+apoc.bolt.production.url=bolt://password:test@localhost:7688
+----
+
+Config available are:
+
+* `statistics`: possible values are true/false, the default value is false. This config print the execution statistics;
+* `virtual`: possible values are true/false, the default value is false. This config return result in virtual format and not in map format, in apoc.bolt.load.
+
+
+== Bolt Examples
+
+**Return node in map format**
+
+[source,cypher]
+----
+call apoc.bolt.execute("bolt://user:password@localhost:7687",
+"match(p:Person {name:{name}}) return p", {name:'Michael'})
+----
+
+image::{img}/apoc.bolt.execute.nodemap.png[width=800]
+
+
+**Return node in virtual Node format**
+
+[source,cypher]
+----
+call apoc.bolt.load("bolt://user:password@localhost:7687",
+"match(p:Person {name:{name}}) return p", {name:'Michael'}, {virtual:true})
+----
+
+image::{img}/apoc.bolt.load.virtualnode.png[width=800]
+
+
+**Create node and return statistic**
+
+[source,cypher]
+----
+call apoc.bolt.execute("bolt://user:password@localhost:7687",
+"create(n:Node {name:{name}})", {name:'Node1'}, {statistics:true})
+----
+
+image::{img}/apoc.bolt.execute.createandstatistics.png[width=800]
+
+
+**Return more scalar values**
+
+[source,cypher]
+----
+call apoc.bolt.execute("bolt://user:password@localhost:7687",
+"match (n:Person {name:{name}}) return n.age as age, n.name as name, n.surname as surname", {name:'Michael'})
+----
+
+image::{img}/apoc.bolt.execute.scalarmulti.png[width=800]
+
+
+**Return relationship in a map format**
+
+[source,cypher]
+----
+call apoc.bolt.load("bolt://neo4j:test@localhost:7687",
+"MATCH (n:Person{name:{name}})-[r:KNOWS]->(p) return r as rel", {name:'Anne'})
+----
+
+image::{img}/apoc.bolt.load.relmap.png[width=800]
+
+
+**Return virtual path**
+
+[source,cypher]
+----
+call apoc.bolt.load("bolt://user:password@localhost:7687",
+"START n=node({idNode}) MATCH path= (n)-[r:REL_TYPE*..3]->(o) return path", {idNode:200}, {virtual:true})
+----
+
+image::{img}/apoc.bolt.load.returnvirtualpath.png[width=800]
+
+
+**Create a Node with params in input**
+
+[source,cypher]
+----
+call apoc.bolt.execute("bolt://user:password@localhost:7687",
+"CREATE (n:Car{brand:{brand},model:{model},year:{year}}) return n", {brand:'Ferrari',model:'California',year:2016})
+----
+
+image::{img}/apoc.bolt.execute.createwithparams.png[width=800]
