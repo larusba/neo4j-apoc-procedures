@@ -73,6 +73,7 @@ dependencies {
     testCompile group: 'org.neo4j', name: 'neo4j-causal-clustering', version:neo4jVersion, classifier: "tests"
     testCompile group: 'org.neo4j', name: 'neo4j-kernel', version:neo4jVersion, classifier: "tests"
     testCompile group: 'org.neo4j', name: 'neo4j-io', version:neo4jVersion, classifier: "tests"
+    testCompile group: 'org.neo4j', name: 'neo4j-bolt', version: '3.0.1'
 
     compileOnly 'org.mongodb:mongodb-driver:3.2.2'
     testCompile 'org.mongodb:mongodb-driver:3.2.2'

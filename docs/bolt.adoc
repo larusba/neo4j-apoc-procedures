@@ -1,0 +1,92 @@
+
+Bolt procedures allows to accessing other databases via bolt protocol.
+
+[cols="3m,2"]
+|===
+| CALL apoc.execute.bolt(url, statement, params, config) YIELD row  | access to other databases via bolt for read and write
+| CALL apoc.load.bolt(url, statement, params, config) YIELD row | access to other databases via bolt for read
+|===
+
+Config available are:
+
+* `statistics`: possible values are true/false, the default value is false. This config print the execution statistics;
+* `virtual`: possible values are true/false, the default value is false. This config return result in virtual format and not in map format.
+
+
+== Bolt Examples
+
+**Return node in map format**
+
+[source,cypher]
+----
+call apoc.execute.bolt("bolt://user:password@localhost:7687",
+"match(p:Person {name:'Michael'}) return p", {}, {})
+----
+
+image::{img}/apoc.execute.bolt.nodemap.png[width=800]
+
+
+**Return node in virtual Node format**
+
+[source,cypher]
+----
+call apoc.load.bolt("bolt://user:password@localhost:7687",
+"match(p:Person {name:'Michael'}) return p", {}, {virtual:true})
+----
+
+image::{img}/apoc.load.bolt.virtualnode.png[width=800]
+
+
+**Create node and return statistic**
+
+[source,cypher]
+----
+call apoc.execute.bolt("bolt://user:password@localhost:7687",
+"create(n:Node {name:'Node1'})", {}, {statistics:true})
+----
+
+image::{img}/apoc.execute.bolt.createandstatistics.png[width=800]
+
+
+**Return more scalar values**
+
+[source,cypher]
+----
+call apoc.execute.bolt("bolt://user:password@localhost:7687",
+"match (n:Person {name:'Michael'}) return n.age as age, n.name as name, n.surname as surname", {}, {})
+----
+
+image::{img}/apoc.execute.bolt.scalarmulti.png[width=800]
+
+
+**Return relationship in a map format**
+
+[source,cypher]
+----
+call apoc.load.bolt("bolt://neo4j:test@localhost:7687",
+"MATCH (n:Person{name:'Anne'})-[r:KNOWS]->(p) return r as rel", {}, {})
+----
+
+image::{img}/apoc.load.bolt.relmap.png[width=800]
+
+
+**Return virtual path**
+
+[source,cypher]
+----
+call apoc.load.bolt("bolt://user:password@localhost:7687",
+"START n=node(idNode) MATCH path= (n)-[r:REL_TYPE*..3]->(o) return path", {}, {virtual:true})
+----
+
+image::{img}/apoc.load.bolt.returnvirtualpath.png[width=800]
+
+
+**Create a Node with params in input**
+
+[source,cypher]
+----
+call apoc.execute.bolt("bolt://user:password@localhost:7687",
+"CREATE (n:Car{brand:{brand},model:{model},year:{year}}) return n", {brand:'Ferrari',model:'California',year:2016}, {})
+----
+
+image::{img}/apoc.execute.bolt.createwithparams.png[width=800]
