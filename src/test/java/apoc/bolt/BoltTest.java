@@ -73,6 +73,7 @@ public class BoltTest {
                 System.out.println("result.get(\"n\") = " + result.get("n"));
                 Node node = (Node) result.get("n");
                 System.out.println("node = " + node);
+
                 assertEquals(true, node.hasLabel(Label.label("Person")));
                 assertEquals("Tom", node.getProperty("name"));
                 assertEquals("Burton", node.getProperty("surname"));
@@ -102,7 +103,7 @@ public class BoltTest {
         TestUtil.ignoreException(() -> {
             testCall(db, "call apoc.bolt.load(" + BOLT_URL
                     + ",'START neo=node({idNode})  MATCH path= (neo)-[r:KNOWS*..4]->(other) return path', {idNode:1}, {virtual:true})", r -> {
-                System.out.println("r = " + r);
+
                 assertNotNull(r);
                 Map<String, Object> row = (Map<String, Object>) r.get("row");
                 Map<String, Object> path = (Map<String, Object>) row.get("path");
@@ -137,7 +138,7 @@ public class BoltTest {
     public void testLoadRelsAndNodes() throws Exception {
         TestUtil.ignoreException(() -> {
             testCall(db, "call apoc.bolt.load(" + BOLT_URL + ",'match(p)-[r]->(c) return *', {}, {virtual:true})", r -> {
-                System.out.println("r = " + r);
+
                 Map result = (Map) r.get("row");
                 Node node = (Node) result.get("p");
                 assertEquals(true, node.hasLabel(Label.label("Person")));
@@ -176,7 +177,6 @@ public class BoltTest {
     public void testLoadNode() throws Exception {
         TestUtil.ignoreException(() -> {
             TestUtil.testCall(db, "call apoc.bolt.load(" + BOLT_URL + ",'match (p:Person {name:{name}}) return p', {name:'Michael'})", r -> {
-                System.out.println("r = " + r);
                 assertNotNull(r);
                 Map<String, Object> row = (Map<String, Object>) r.get("row");
                 Map<String, Object> node = (Map<String, Object>) row.get("p");
@@ -281,24 +281,24 @@ public class BoltTest {
         TestUtil.ignoreException(() -> {
             TestUtil.testCall(db, "call apoc.bolt.load(" + BOLT_URL + ",'START neo=node({idNode})  MATCH path= (neo)-[r:KNOWS*..4]->(other) return path', {idNode:1})", r -> {
                 assertNotNull(r);
-                System.out.println("r = " + r);
+
                 Map<String, Object> row = (Map<String, Object>) r.get("row");
+                Map<String, Object> path = (Map<String, Object>) row.get("path");
+                assertEquals("KNOWS", path.get("type"));
+                assertEquals(Arrays.asList("Person"), path.get("startLabels"));
+                assertEquals(Arrays.asList("Person"), path.get("endLabels"));
 
-                assertEquals("KNOWS", row.get("type"));
-                assertEquals(Arrays.asList("Person"), row.get("startLabels"));
-                assertEquals(Arrays.asList("Person"), row.get("endLabels"));
-
-                Map<String, Object> startProperties = (Map<String, Object>) row.get("startProperties");
+                Map<String, Object> startProperties = (Map<String, Object>) path.get("startProperties");
                 assertEquals("Tom", startProperties.get("name"));
                 assertEquals("Burton", startProperties.get("surname"));
                 assertEquals(23L, startProperties.get("age"));
 
-                Map<String, Object> endProperties = (Map<String, Object>) row.get("endProperties");
+                Map<String, Object> endProperties = (Map<String, Object>) path.get("endProperties");
                 assertEquals("John", endProperties.get("name"));
                 assertEquals("William", endProperties.get("surname"));
                 assertEquals(22L, endProperties.get("age"));
 
-                Map<String, Object> relProperties = (Map<String, Object>) row.get("relProperties");
+                Map<String, Object> relProperties = (Map<String, Object>) path.get("relProperties");
                 assertEquals(2016L, relProperties.get("since"));
             });
         }, ConnectException.class);
@@ -324,7 +324,7 @@ public class BoltTest {
     @Test
     public void testLoadCreateNodeStatistic() throws Exception {
         TestUtil.ignoreException(() -> {
-            testResult(db, "call apoc.bolt.load(" + BOLT_URL + ",'create(n:Node {name:{name}})', {name:'Node1'}, {statistics:true})", Collections.emptyMap(),
+            testResult(db, "call apoc.bolt.execute(" + BOLT_URL + ",'create(n:Node {name:{name}})', {name:'Node1'}, {statistics:true})", Collections.emptyMap(),
                     r -> {
                         assertNotNull(r);
                         Map<String, Object> row = r.next();
@@ -343,7 +343,6 @@ public class BoltTest {
             testCall(db,
                     "call apoc.bolt.load(\"bolt://neo4j:test@localhost:7687\",\"match(p:Person {name:'Michael'}) return p\", {}, {virtual:false, test:false})",
                     r -> {
-                        System.out.println("r = " + r);
                         assertNotNull(r);
                         Map<String, Object> row = (Map<String, Object>) r.get("row");
                         Map<String, Object> node = (Map<String, Object>) row.get("p");
@@ -362,4 +361,3 @@ public class BoltTest {
         return Util.toLong(value);
     }
 }
-

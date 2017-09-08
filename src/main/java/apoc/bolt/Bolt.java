@@ -8,8 +8,6 @@ import apoc.util.UriResolver;
 import apoc.util.Util;
 import org.neo4j.driver.internal.InternalEntity;
 import org.neo4j.driver.internal.InternalPath;
-import org.neo4j.driver.internal.value.NodeValue;
-import org.neo4j.driver.internal.value.RelationshipValue;
 import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.summary.SummaryCounters;
 import org.neo4j.driver.v1.types.*;
@@ -44,11 +42,12 @@ public class Bolt {
         if (config == null) config = Collections.emptyMap();
         boolean virtual = (boolean) config.getOrDefault("virtual", false);
         boolean addStatistics = (boolean) config.getOrDefault("statistics", false);
-        UriResolver uri = new UriResolver(url, config);
+        UriResolver uri = new UriResolver(url, "bolt");
+        uri.initialize();
         Driver driver = null;
         Session session = null;
         try {
-            driver = GraphDatabase.driver(uri.getUrlDriver(), AuthTokens.basic(uri.getUser(), uri.getPassword()));
+            driver = GraphDatabase.driver(uri.getUriDriver(), AuthTokens.basic(uri.getUser(), uri.getPassword()));
             session = driver.session();
             if (addStatistics) return Stream.of(new RowResult(toMap(runStatement(statement, session, params).summary().counters())));
 
@@ -64,7 +63,7 @@ public class Bolt {
     @Procedure()
     @Description("apoc.bolt.execute(url, statement, params, config) - access to other databases via bolt for read")
     public Stream<RowResult> execute(@Name("url") String url, @Name("statement") String statement, @Name(value = "params", defaultValue = "{}") Map<String, Object> params, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) throws URISyntaxException {
-        config = (Map<String, Object>) Util.map("config", config).replace("virtual", false);
+        config.replace("virtual",false);
 
         return load(url, statement, params, config);
     }

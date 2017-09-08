@@ -5,7 +5,6 @@ import apoc.ApocConfiguration;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
 
 /**
  * @author AgileLARUS
@@ -19,14 +18,18 @@ public class UriResolver {
     private int port;
     private String context;
     private String query;
+    private String url;
+    private String prefix;
 
-    public UriResolver(String url, Map<String, Object> config) throws URISyntaxException {
-        url = ApocConfiguration.get("apoc.bolt.url", url);
-        System.out.println("trigger " + ApocConfiguration.get("apoc.trigger.enabled"));
-        System.out.println("url = " + url);
-        System.out.println("ApocConfiguration.get(\"apoc.bolt.url\", url) = " + ApocConfiguration.get("apoc.bolt.url", url));
-        URI uri = new URI(url);
-        if(uri.getUserInfo() != null) {
+    public UriResolver(String url, String prefix) throws URISyntaxException {
+        this.url = url;
+        this.prefix = prefix;
+    }
+
+    public void initialize() throws URISyntaxException {
+        this.url = getUri(this.url, this.prefix);
+        URI uri = new URI(this.url);
+        if (uri.getUserInfo() != null) {
             String[] userInfoArray = uri.getUserInfo().split(":");
             this.user = userInfoArray[0];
             this.password = userInfoArray[1];
@@ -37,13 +40,15 @@ public class UriResolver {
         this.query = uri.getQuery();
     }
 
-    public String getUser() {return user; }
+    public String getUser() {
+        return user;
+    }
 
     public String getPassword() {
         return password;
     }
 
-    public String getUrlDriver() {
+    public String getUriDriver() {
         return urlDriver;
     }
 
@@ -57,5 +62,15 @@ public class UriResolver {
 
     public String getQuery() {
         return query;
+    }
+
+    private String getUri(String key, String prefix) {
+        String keyUrl = prefix + "." + key + ".url";
+        if (key == null || key.equals(""))
+            key = ApocConfiguration.get("bolt.url", key);
+        else if (ApocConfiguration.isEnabled(keyUrl))
+            key = ApocConfiguration.get(keyUrl, key);
+
+        return key;
     }
 }
