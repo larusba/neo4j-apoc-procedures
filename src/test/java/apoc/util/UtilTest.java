@@ -5,13 +5,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
+import java.net.URISyntaxException;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.Map;
 
 import static apoc.util.MapUtil.map;
 import static java.lang.String.format;
@@ -78,6 +76,19 @@ public class UtilTest {
 
     @Test
     public void mergeNullMaps() {
+        assertNotNull(Util.merge(null, null));
+    }
+
+    @Test
+    public void uriCreatorTest() throws URISyntaxException {
+        String url = "bolt://neo4j:test@//example.com/?bar1=a&bar2=b";//example.com/?bar1=a&bar2=b
+        Map<String, Object> config = Util.map();
+        UriResolver uri = new UriResolver(url, config);
+        System.out.println("uri.getPassword() = " + uri.getPassword());
+        System.out.println("uri.getUser() = " + uri.getUser());
+        System.out.println("uri = " + uri);
+        System.out.println("uri context = " + uri.getContext());
+        System.out.println("uri = " + uri.getQuery());
         assertNotNull(Util.merge(null, null));
     }
 }

@@ -20,7 +20,7 @@ Config available are:
 [source,cypher]
 ----
 call apoc.execute.bolt("bolt://user:password@localhost:7687",
-"match(p:Person {name:'Michael'}) return p", {}, {})
+"match(p:Person {name:{name}}) return p", {name:'Michael'})
 ----
 
 image::{img}/apoc.execute.bolt.nodemap.png[width=800]
@@ -31,7 +31,7 @@ image::{img}/apoc.execute.bolt.nodemap.png[width=800]
 [source,cypher]
 ----
 call apoc.load.bolt("bolt://user:password@localhost:7687",
-"match(p:Person {name:'Michael'}) return p", {}, {virtual:true})
+"match(p:Person {name:{name}}) return p", {name:'Michael'}, {virtual:true})
 ----
 
 image::{img}/apoc.load.bolt.virtualnode.png[width=800]
@@ -42,7 +42,7 @@ image::{img}/apoc.load.bolt.virtualnode.png[width=800]
 [source,cypher]
 ----
 call apoc.execute.bolt("bolt://user:password@localhost:7687",
-"create(n:Node {name:'Node1'})", {}, {statistics:true})
+"create(n:Node {name:{name}})", {name:'Node1'}, {statistics:true})
 ----
 
 image::{img}/apoc.execute.bolt.createandstatistics.png[width=800]
@@ -53,7 +53,7 @@ image::{img}/apoc.execute.bolt.createandstatistics.png[width=800]
 [source,cypher]
 ----
 call apoc.execute.bolt("bolt://user:password@localhost:7687",
-"match (n:Person {name:'Michael'}) return n.age as age, n.name as name, n.surname as surname", {}, {})
+"match (n:Person {name:{name}}) return n.age as age, n.name as name, n.surname as surname", {name:'Michael'})
 ----
 
 image::{img}/apoc.execute.bolt.scalarmulti.png[width=800]
@@ -64,7 +64,7 @@ image::{img}/apoc.execute.bolt.scalarmulti.png[width=800]
 [source,cypher]
 ----
 call apoc.load.bolt("bolt://neo4j:test@localhost:7687",
-"MATCH (n:Person{name:'Anne'})-[r:KNOWS]->(p) return r as rel", {}, {})
+"MATCH (n:Person{name:{name}})-[r:KNOWS]->(p) return r as rel", {name:'Anne'})
 ----
 
 image::{img}/apoc.load.bolt.relmap.png[width=800]
@@ -75,7 +75,7 @@ image::{img}/apoc.load.bolt.relmap.png[width=800]
 [source,cypher]
 ----
 call apoc.load.bolt("bolt://user:password@localhost:7687",
-"START n=node(idNode) MATCH path= (n)-[r:REL_TYPE*..3]->(o) return path", {}, {virtual:true})
+"START n=node({idNode}) MATCH path= (n)-[r:REL_TYPE*..3]->(o) return path", {idNode:200}, {virtual:true})
 ----
 
 image::{img}/apoc.load.bolt.returnvirtualpath.png[width=800]
@@ -86,7 +86,7 @@ image::{img}/apoc.load.bolt.returnvirtualpath.png[width=800]
 [source,cypher]
 ----
 call apoc.execute.bolt("bolt://user:password@localhost:7687",
-"CREATE (n:Car{brand:{brand},model:{model},year:{year}}) return n", {brand:'Ferrari',model:'California',year:2016}, {})
+"CREATE (n:Car{brand:{brand},model:{model},year:{year}}) return n", {brand:'Ferrari',model:'California',year:2016})
 ----
 
 image::{img}/apoc.execute.bolt.createwithparams.png[width=800]
