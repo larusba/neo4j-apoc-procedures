@@ -22,13 +22,30 @@ public class VirtualRelationship implements Relationship {
     private final Node endNode;
     private final RelationshipType type;
     private final long id;
-    private final Map<String, Object> props = new HashMap<>();
+    private final Map<String, Object> props;
 
     public VirtualRelationship(Node startNode, Node endNode, RelationshipType type) {
         this.id = MIN_ID.getAndDecrement();
         this.startNode = startNode;
         this.endNode = endNode;
         this.type = type;
+        this.props = new HashMap<>();
+    }
+
+    public VirtualRelationship(Node startNode, Node endNode, RelationshipType type, Map<String, Object> props) {
+        this.id = MIN_ID.getAndDecrement();
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = type;
+        this.props = props;
+    }
+
+    public VirtualRelationship(long id, Node startNode, Node endNode, RelationshipType type, Map<String, Object> props) {
+        this.id = id;
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = type;
+        this.props = props;
     }
 
     @Override
