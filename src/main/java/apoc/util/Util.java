@@ -4,8 +4,11 @@ import apoc.ApocConfiguration;
 import apoc.Pools;
 import apoc.export.util.*; // todo
 import apoc.path.RelationshipTypeAndDirections;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.Path;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -20,6 +23,7 @@ import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
+import org.w3c.dom.Document;
 
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
@@ -302,6 +306,7 @@ public class Util {
     }
 
     public static CountingInputStream openInputStream(String url, Map<String, Object> headers, String payload) throws IOException {
+        if(url.startsWith("hdfs")) return openHdfsInputStream(url, headers, payload);
         URLConnection con;
         boolean redirect;
         do {
@@ -327,6 +332,17 @@ public class Util {
             stream = new DeflaterInputStream(stream);
         }
         return new CountingInputStream(stream, size);
+    }
+
+    public static CountingInputStream openHdfsInputStream(String url, Map<String, Object> headers, String payload) throws IOException {
+        URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
+        Configuration conf = new Configuration();
+        conf.set("fs.file.impl", LocalFileSystem.class.getName());
+        conf.set("fs.defaultFS", url);
+        FileSystem fs = FileSystem.get(conf);
+        org.apache.hadoop.fs.Path hdfsreadpath = new org.apache.hadoop.fs.Path(url);
+        FSDataInputStream stream = fs.open(hdfsreadpath);
+        return new CountingInputStream(stream, 1);
     }
 
     public static boolean toBoolean(Object value) {

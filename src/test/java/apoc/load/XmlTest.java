@@ -9,6 +9,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
+import java.net.ConnectException;
 import java.sql.Time;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -226,11 +227,13 @@ public class XmlTest {
     }
 
     @Test
-    public void testLoadXmlNoFailOnError () {
-        testCall(db, "CALL apoc.load.xml('file:src/test/resources/books.xm', '', {failOnError:false}) yield value as result",
-                (r) -> {
-                    Map resultMap = (Map) r.get("result");
-                    assertEquals(Collections.emptyMap(), resultMap);
-                });
+    public void testLoadXmlViaHdfs () {
+        TestUtil.ignoreException(() -> {
+            testCall(db, "CALL apoc.load.xml('hdfs://localhost:9000/user/larusba/input/books.xml', '/catalog/book[title=\"Maeve Ascendant\"]/.') yield value as result",
+                    (r) -> {
+                        Object value = r.values();
+                        assertEquals(XML_XPATH_AS_NESTED_MAP, value.toString());
+                    });
+        }, ConnectException.class);
     }
 }

@@ -42,8 +42,11 @@ public class JdbcTest {
     @Test
     public void testLoadJdbc() throws Exception {
         testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','PERSON')",
-                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", hireDate.getTime(),"EFFECTIVE_FROM_DATE",
-                        effectiveFromDate.getTime()), row.get("row")));
+                (row) -> {
+                    System.out.println("row = " + row);
+            assertEquals( Util.map("NAME", "John", "HIRE_DATE", hireDate.getTime(),"EFFECTIVE_FROM_DATE",
+                            effectiveFromDate.getTime()), row.get("row"));
+                });
     }
 
     @Test

@@ -1,5 +1,6 @@
 package apoc.load;
 
+import java.net.ConnectException;
 import java.net.URL;
 import java.util.Map;
 
@@ -107,5 +108,14 @@ public class LoadJsonTest {
                 (row) -> {
                     assertFalse(row.hasNext());
                 });
+    }
+
+    @Test public void testLoadJsonHdfs() throws Exception {
+        TestUtil.ignoreException(() -> {
+            testCall(db, "CALL apoc.load.json({url},'')",map("url","hdfs://localhost:9000/user/larusba/input/map.json"),
+                    (row) -> {
+                        assertEquals(map("foo",asList(1,2,3)), row.get("value"));
+                    });
+        }, ConnectException.class);
     }
 }

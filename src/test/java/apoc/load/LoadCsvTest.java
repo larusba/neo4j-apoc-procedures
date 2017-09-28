@@ -9,6 +9,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Result;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
+import java.net.ConnectException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
@@ -147,5 +148,18 @@ public class LoadCsvTest {
                     assertEquals(Collections.emptyMap(), row.get("map"));
                     assertEquals(false, r.hasNext());
                 });
+    }
+
+    @Test
+    public void testLoadCsvHdfs() throws Exception {
+        TestUtil.ignoreException(() -> {
+            testResult(db, "CALL apoc.load.csv({url},null)", map("url","hdfs://localhost:9000/user/larusba/input/test.csv"), // 'file:test.csv'
+                    (r) -> {
+                        assertRow(r, "Selma", "8", 0L);
+                        assertRow(r, "Rana", "11", 1L);
+                        assertRow(r, "Selina", "18", 2L);
+                        assertEquals(false, r.hasNext());
+                    });
+        }, ConnectException.class);
     }
 }

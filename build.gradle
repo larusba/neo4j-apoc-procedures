@@ -68,6 +68,8 @@ dependencies {
     compile 'org.neo4j.driver:neo4j-java-driver:1.4.4'
     compileOnly group: 'net.biville.florent', name: 'neo4j-sproc-compiler', version:'1.2'
 
+    compile group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.8.1'
+
     compile 'com.novell.ldap:jldap:2009-10-07'
 
     testCompile group: 'junit', name: 'junit', version:'4.12'
@@ -96,6 +98,10 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     jmh group: 'org.neo4j', name: 'neo4j-lucene-index', version:neo4jVersionEffective
     jmh group: 'org.neo4j', name: 'neo4j-kernel', version:neo4jVersionEffective, classifier: "tests"
+}
+
+configurations.all {
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
 }
 
 test {

@@ -1,8 +1,11 @@
 package apoc.load;
 
+import apoc.export.util.CountingInputStream;
 import apoc.export.util.FileUtils;
 import apoc.result.MapResult;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
@@ -59,10 +62,22 @@ public class Xml {
             documentBuilderFactory.setNamespaceAware(true);
             documentBuilderFactory.setIgnoringElementContentWhitespace(true);
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-
             FileUtils.checkReadAllowed(url);
-            URLConnection urlConnection = new URL(url).openConnection();
-            Document doc = documentBuilder.parse(urlConnection.getInputStream());
+            Document doc;
+            if (url.toLowerCase().startsWith("hdfs")) {
+                URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
+                Configuration conf = new Configuration();
+                conf.set("fs.file.impl", LocalFileSystem.class.getName());
+                conf.set("fs.defaultFS", url);
+                FileSystem fs = FileSystem.get(conf);
+                Path hdfsPath = new Path(url);
+                FSDataInputStream inputStream = fs.open(hdfsPath);
+                doc = documentBuilder.parse(inputStream);
+            }
+            else {
+                URLConnection urlConnection = new URL(url).openConnection();
+                doc = documentBuilder.parse(urlConnection.getInputStream());
+            }
 
             XPathFactory xPathFactory = XPathFactory.newInstance();
 
