@@ -21,6 +21,8 @@ import static org.neo4j.helpers.collection.Pair.*;
 
 public class Coll {
 
+    public static final char REVERSE_ORDER_CHAR = '^';
+
     @Context
     public GraphDatabaseService db;
 
@@ -440,8 +442,7 @@ public class Coll {
     @Description("apoc.coll.sortNodes([nodes], 'name') sort nodes by property")
     public List<Node> sortNodes(@Name("coll") List<Node> coll, @Name("prop") String prop) {
         List<Node> sorted = new ArrayList<>(coll);
-        Collections.sort(sorted,
-                (x, y) -> compare(x.getProperty(prop, null), y.getProperty(prop, null)));
+        Collections.sort(sorted, (x, y) -> reverseOrder(prop) * compare(x.getProperty(cleanProperty(prop), null), y.getProperty(cleanProperty(prop), null)));
         return sorted;
     }
 
@@ -449,8 +450,16 @@ public class Coll {
     @Description("apoc.coll.sortMaps([maps], 'name') - sort maps by property")
     public List<Map<String,Object>> sortMaps(@Name("coll") List<Map<String,Object>> coll, @Name("prop") String prop) {
         List<Map<String,Object>> sorted = new ArrayList<>(coll);
-        sorted.sort((x, y) -> compare(x.get(prop), y.get(prop)));
+        Collections.sort(sorted, (x, y) -> reverseOrder(prop) * compare(x.get(cleanProperty(prop)), y.get(cleanProperty(prop))));
         return sorted;
+    }
+
+    public int reverseOrder(String prop) {
+        return prop.charAt(0) == REVERSE_ORDER_CHAR ? -1 : 1;
+    }
+
+    public String cleanProperty(String prop) {
+        return prop.charAt(0) == REVERSE_ORDER_CHAR ? prop.substring(1) : prop;
     }
 
     public static int compare(Object o1, Object o2) {
