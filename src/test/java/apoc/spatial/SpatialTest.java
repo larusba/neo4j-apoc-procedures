@@ -21,11 +21,10 @@ import org.neo4j.procedure.Procedure;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import static apoc.util.MapUtil.map;
-import static apoc.util.TestUtil.testCallCount;
-import static apoc.util.TestUtil.testCallEmpty;
-import static apoc.util.TestUtil.testResult;
+import static apoc.util.TestUtil.*;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SpatialTest {
 
@@ -42,11 +41,13 @@ public class SpatialTest {
 
         @Procedure("apoc.spatial.geocodeOnce")
         public Stream<Geocode.GeoCodeResult> geocodeOnce(@Name("location") String address) {
+            Geocode.checkNullOrEmptyAddress(address);
             return geocode(address, 1);
         }
 
         @Procedure("apoc.spatial.geocode")
         public Stream<Geocode.GeoCodeResult> geocode(@Name("location") String address, @Name("maxResults") long maxResults) {
+            Geocode.checkNullOrEmptyAddress(address);
             if (geocodeResults != null && geocodeResults.containsKey(address)) {
                 Map data = geocodeResults.get(address);
                 return Stream.of(new Geocode.GeoCodeResult(Util.toDouble(data.get("lat")), Util.toDouble(data.get("lon")), String.valueOf(data.get("display_name")), data));
@@ -54,6 +55,7 @@ public class SpatialTest {
                 return Stream.empty();
             }
         }
+
     }
 
     @Before
@@ -163,5 +165,31 @@ public class SpatialTest {
             }
             assertFalse("Expected " + expectedCount + " results, but there are more ", res.hasNext());
         });
+    }
+
+    @Test
+    public void testErrorGeocodeOnceShouldFail(){
+        String query = "CALL apoc.spatial.geocodeOnce(null) YIELD location RETURN *";
+        try {
+            testCall(db, query, result -> {
+                assertTrue(result.isEmpty());
+            });
+            fail();
+        } catch (Exception e){
+            assertTrue(e.getMessage().contains("Parameter location can't be null or empty"));
+        }
+    }
+
+    @Test
+    public void testErrorGeocodeShouldFail(){
+        String query = "CALL apoc.spatial.geocode(null,1) YIELD location RETURN *";
+        try {
+            testCall(db, query, result -> {
+                assertTrue(result.isEmpty());
+            });
+            fail();
+        } catch (Exception e){
+            assertTrue(e.getMessage().contains("Parameter location can't be null or empty"));
+        }
     }
 }

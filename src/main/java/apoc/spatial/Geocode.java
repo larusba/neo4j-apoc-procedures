@@ -216,12 +216,14 @@ public class Geocode {
     @Procedure
     @Description("apoc.spatial.geocodeOnce('address') YIELD location, latitude, longitude, description, osmData - look up geographic location of address from openstreetmap geocoding service")
     public Stream<GeoCodeResult> geocodeOnce(@Name("location") String address) throws UnsupportedEncodingException {
-        return geocode(address, 1L,false);
+        checkNullOrEmptyAddress(address);
+        return geocode(address, 1L, false);
     }
 
     @Procedure
     @Description("apoc.spatial.geocode('address') YIELD location, latitude, longitude, description, osmData - look up geographic location of address from openstreetmap geocoding service")
     public Stream<GeoCodeResult> geocode(@Name("location") String address, @Name(value = "maxResults",defaultValue = "100") long maxResults, @Name(value = "quotaException",defaultValue = "false") boolean quotaException) {
+        checkNullOrEmptyAddress(address);
         try {
             return getSupplier().geocode(address, maxResults == 0 ? MAX_RESULTS : Math.min(Math.max(maxResults, 1), MAX_RESULTS));
         } catch(IllegalStateException re) {
@@ -244,5 +246,10 @@ public class Geocode {
             this.description = description;
             this.location = map("latitude", latitude, "longitude", longitude, "description", description);
         }
+    }
+
+    public static void checkNullOrEmptyAddress(String address){
+        if (address == null || address.isEmpty() || address.equals(""))
+            throw new IllegalArgumentException("Parameter location can't be null or empty");
     }
 }
