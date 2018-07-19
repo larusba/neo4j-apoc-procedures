@@ -1,5 +1,8 @@
 package apoc.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -78,5 +81,20 @@ public class JsonUtil {
         } catch (IOException e) {
             throw new RuntimeException("Can't convert " + json + " to "+type.getSimpleName()+" with path "+path, e);
         }
+    }
+
+    public static String getPropertiesArray(com.fasterxml.jackson.databind.ObjectMapper mapperProp, String key, Object value, ObjectNode objectNode) throws JsonProcessingException {
+        if(!value.getClass().isArray()) {
+            objectNode.put(key, value.toString());
+        }else {
+            String[] prop;
+            ArrayNode arrayPropertiesInside = mapperProp.createArrayNode();
+            for(String property : prop = (String[]) value){
+                arrayPropertiesInside.add(property);
+            }
+            objectNode.putPOJO(key, arrayPropertiesInside);
+        }
+
+        return mapperProp.writerWithDefaultPrettyPrinter().writeValueAsString(objectNode);
     }
 }
