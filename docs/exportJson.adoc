@@ -1,0 +1,101 @@
+Make sure to set the config options in your `neo4j.conf`
+
+.Neo4j.conf
+
+----
+apoc.export.file.enabled=true
+----
+
+// tag::export.json[]
+`YIELD file, source, format, nodes, relationships, properties, time, rows`
+[cols="1m,5"]
+|===
+| apoc.export.json.query(query,file,config) | exports results from the Cypher statement as Json to the provided file
+| apoc.export.json.all(file,config) | exports whole database as Json to the provided file
+| apoc.export.json.data(nodes,rels,file,config) | exports given nodes and relationships as Json to the provided file
+| apoc.export.json.graph(graph,file,config) | exports given graph object as Json to the provided file
+|===
+// end::export.json[]
+== Examples
+
+For the examples below we create the following dataset:
+
+[source,cypher]
+----
+CREATE (f:User {name:'foo',age:42,male:true,kids:['a','b','c']})-[:KNOWS]->(b:User {name:'bar',age:42}),(c:User {age:12})
+----
+
+.Export query
+
+[source,cypher]
+----
+CALL apoc.export.json.query("MATCH (u:User) WHERE u.age > {age} return u","/tmp/query.json",{params:{age:10}})
+----
+
+result:
+
+[source,json]
+----
+{"data":{"u.age":42,"u.name":"foo","u.male":true,"u.kids":["a","b","c"],"labels(u)":["User"]}}
+{"data":{"u.age":42,"u.name":"bar","labels(u)":["User"]}}
+{"data":{"u.age":12,"labels(u)":["User"]}}
+----
+
+.Export all
+
+[source,cypher]
+----
+CALL apoc.export.json.all("/tmp/all.json",null)
+----
+
+result:
+
+[source,json]
+----
+{"type":"node","id":0,"labels":["User"],"data":{"name":"foo","age":"42","male":"true","kids":["a","b","c"]}}
+{"type":"node","id":1,"labels":["User"],"data":{"name":"bar","age":"42"}}
+{"type":"node","id":2,"labels":["User"],"data":{"age":"12"}}
+{"type":"relationship","id":0,"label":"KNOWS","data":{},"start":0,"end":1}
+----
+
+.Export graph
+
+[source,cypher]
+----
+CALL apoc.graph.fromDB('test',{}) yield graph
+CALL apoc.export.json.graph(graph,"tmp/graph.json",null)
+YIELD nodes, relationships, properties, file, source,format, time
+RETURN *
+----
+
+result:
+
+[source,json]
+----
+{"type":"node","id":0,"labels":["User"],"data":{"name":"foo","age":"42","male":"true","kids":["a","b","c"]}}
+{"type":"node","id":1,"labels":["User"],"data":{"name":"bar","age":"42"}}
+{"type":"node","id":2,"labels":["User"],"data":{"age":"12"}}
+{"type":"relationship","id":0,"label":"KNOWS","properties":{},"start":0,"end":1}
+----
+
+.Export data
+
+[source,cypher]
+----
+MATCH (nod:User)
+MATCH ()-[rels:KNOWS]->()
+WITH collect(nod) as a, collect(rels) as b
+CALL apoc.export.json.data(a, b, "tmp/data.json", null)
+YIELD nodes, relationships, properties, file, source,format, time
+RETURN *
+----
+
+result:
+
+[source,json]
+----
+{"type":"node","id":0,"labels":["User"],"data":{"name":"foo","age":"42","male":"true","kids":["a","b","c"]}}
+{"type":"node","id":1,"labels":["User"],"data":{"name":"bar","age":"42"}}
+{"type":"node","id":2,"labels":["User"],"data":{"age":"12"}}
+{"type":"relationship","id":0,"label":"KNOWS","properties":{},"start":0,"end":1}
+----
