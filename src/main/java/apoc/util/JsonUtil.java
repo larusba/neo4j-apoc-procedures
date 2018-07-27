@@ -1,13 +1,5 @@
 package apoc.util;
 
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.MappingIterator;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.neo4j.procedure.Name;
-
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +7,17 @@ import java.util.Map;
 import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import org.neo4j.procedure.Name;
+
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 
 /**
  * @author mh
@@ -32,6 +35,7 @@ public class JsonUtil {
         OBJECT_MAPPER.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
         OBJECT_MAPPER.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
         OBJECT_MAPPER.configure(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS, true);
+        OBJECT_MAPPER.enable(DeserializationFeature.USE_LONG_FOR_INTS);
     }
 
     static class NonClosingStream extends FilterInputStream {
@@ -53,7 +57,7 @@ public class JsonUtil {
             FileUtils.checkReadAllowed(url);
             url = FileUtils.changeFileUrlIfImportDirectoryConstrained(url);
             InputStream input = Util.openInputStream(url, headers, payload);
-            JsonParser parser = OBJECT_MAPPER.getJsonFactory().createJsonParser(input);
+            JsonParser parser = OBJECT_MAPPER.getFactory().createParser(input);
             MappingIterator<Object> it = OBJECT_MAPPER.readValues(parser, Object.class);
             Stream<Object> stream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, 0), false);
             return (path==null||path.isEmpty()) ? stream  : stream.map((value) -> JsonPath.parse(value,JSON_PATH_CONFIG).read(path));
@@ -73,8 +77,11 @@ public class JsonUtil {
     public static <T> T parse(String json, String path, Class<T> type) {
         if (json==null || json.isEmpty()) return null;
         try {
-            if (path == null || path.isEmpty()) return OBJECT_MAPPER.readValue(json, type);
-            return JsonPath.parse(json,JSON_PATH_CONFIG).read(path,type);
+            if (path == null || path.isEmpty()) {
+                return OBJECT_MAPPER.readValue(json, type);
+            }
+            String stringValue = OBJECT_MAPPER.writeValueAsString(JsonPath.parse(json,JSON_PATH_CONFIG).read(path, type));
+            return OBJECT_MAPPER.readValue(stringValue, type);
         } catch (IOException e) {
             throw new RuntimeException("Can't convert " + json + " to "+type.getSimpleName()+" with path "+path, e);
         }
