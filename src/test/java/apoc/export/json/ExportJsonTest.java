@@ -92,9 +92,30 @@ public class ExportJsonTest {
             "}, {\n" +
             "  \"id\" : 0,\n" +
             "  \"type\" : \"KNOWS\",\n" +
+            "  \"properties\" : { },\n" +
             "  \"start_node_id\" : 0,\n" +
             "  \"end_node_id\" : 1\n" +
             "} ]");
+
+    private static final String EXCEPTED_QUERY_TWO_NODES = "[ {\n"+
+            "  \"id\" : 0,\n"+
+            "  \"labels\" : [ \"User\" ],\n"+
+            "  \"properties\" : {\n"+
+            "    \"name\" : \"foo\",\n"+
+            "    \"age\" : \"42\",\n"+
+            "    \"male\" : \"true\",\n"+
+            "    \"kids\" : [ \"a\", \"b\", \"c\" ]\n"+
+            "  },\n"+
+            "  \"relationships\" : [ \"(0)-[KNOWS,0]->(1)\" ]\n"+
+            "}, {\n"+
+            "  \"id\" : 1,\n"+
+            "  \"labels\" : [ \"User\" ],\n"+
+            "  \"properties\" : {\n"+
+            "    \"name\" : \"bar\",\n"+
+            "    \"age\" : \"42\"\n"+
+            "  },\n"+
+            "  \"relationships\" : [ \"(0)-[KNOWS,0]->(1)\" ]\n"+
+            "} ]";
 
     private static GraphDatabaseService db;
     private static File directory = new File("target/import");
@@ -167,6 +188,20 @@ public class ExportJsonTest {
 
                 });
         assertEquals(EXPECTED_QUERY_NODES, new Scanner(output).useDelimiter("\\Z").next());
+    }
+
+    @Test
+    public void testExportQueryTwoNodesJson() throws Exception {
+        File output = new File(directory, "query_two_nodes.json");
+        String query = "MATCH (u:User{name:'foo'}), (l:User{name:'bar'}) return u, l";
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file},null)", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(2)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+
+                });
+        assertEquals(EXCEPTED_QUERY_TWO_NODES, new Scanner(output).useDelimiter("\\Z").next());
     }
 
     @Test

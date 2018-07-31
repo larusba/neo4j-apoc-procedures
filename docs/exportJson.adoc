@@ -18,7 +18,7 @@ apoc.export.file.enabled=true
 // end::export.json[]
 == Examples
 
-For the example show below we create this set of data.
+For the examples below we create the following dataset:
 
 [source,cypher]
 ----
@@ -29,7 +29,7 @@ CREATE (f:User {name:'foo',age:42,male:true,kids:['a','b','c']})-[:KNOWS]->(b:Us
 
 [source,cypher]
 ----
-CALL apoc.export.json.query("MATCH (u:User) return u.age, u.name, u.male, u.kids, labels(u)",file,config)
+CALL apoc.export.json.query("MATCH (u:User) WHERE u.age > {age} return u","/tmp/query.json",{params:{age:10}})
 ----
 
 result:
@@ -37,18 +37,30 @@ result:
 [source,json]
 ----
 [ {
-  "u.age" : "42",
-  "u.name" : "foo",
-  "u.male" : "true",
-  "u.kids" : [ "a", "b", "c" ],
-  "labels(u)" : "[User]"
+  "id" : 0,
+  "labels" : [ "User" ],
+  "properties" : {
+    "name" : "foo",
+    "age" : "42",
+    "male" : "true",
+    "kids" : [ "a", "b", "c" ]
+  },
+  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
 }, {
-  "u.age" : "42",
-  "u.name" : "bar",
-  "labels(u)" : "[User]"
+  "id" : 1,
+  "labels" : [ "User" ],
+  "properties" : {
+    "name" : "bar",
+    "age" : "42"
+  },
+  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
 }, {
-  "u.age" : "12",
-  "labels(u)" : "[User]"
+  "id" : 2,
+  "labels" : [ "User" ],
+  "properties" : {
+    "age" : "12"
+  },
+  "relationships" : [ ]
 } ]
 ----
 
@@ -56,7 +68,7 @@ result:
 
 [source,cypher]
 ----
-CALL apoc.export.json.all(file,config)
+CALL apoc.export.json.all("/tmp/all.json",null)
 ----
 
 result:
@@ -91,6 +103,7 @@ result:
 }, {
   "id" : 0,
   "type" : "KNOWS",
+  "properties" : { },
   "start_node_id" : 0,
   "end_node_id" : 1
 } ]
@@ -100,54 +113,8 @@ result:
 
 [source,cypher]
 ----
-CALL apoc.export.json.graph(graph,file,config)
-----
-
-result:
-
-[source,json]
-----
-[ {
-  "id" : 0,
-  "labels" : [ "User" ],
-  "properties" : {
-    "name" : "foo",
-    "age" : "42",
-    "male" : "true",
-    "kids" : [ "a", "b", "c" ]
-  },
-  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
-}, {
-  "id" : 1,
-  "labels" : [ "User" ],
-  "properties" : {
-    "name" : "bar",
-    "age" : "42"
-  },
-  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
-}, {
-  "id" : 2,
-  "labels" : [ "User" ],
-  "properties" : {
-    "age" : "12"
-  },
-  "relationships" : [ ]
-}, {
-  "id" : 0,
-  "type" : "KNOWS",
-  "start_node_id" : 0,
-  "end_node_id" : 1
-} ]
-----
-
-.Export data
-
-[source,cypher]
-----
-MATCH (nod:User)
-MATCH ()-[rels:KNOWS]->()
-WITH collect(nod) as a, collect(rels) as b
-CALL apoc.export.json.data(a, b, {file}, null)
+CALL apoc.graph.fromDB('test',{}) yield graph
+CALL apoc.export.json.graph(graph,"tmp/graph.json",null)
 YIELD nodes, relationships, properties, file, source,format, time
 RETURN *
 ----
@@ -184,6 +151,57 @@ result:
 }, {
   "id" : 0,
   "type" : "KNOWS",
+  "properties" : { },
+  "start_node_id" : 0,
+  "end_node_id" : 1
+} ]
+----
+
+.Export data
+
+[source,cypher]
+----
+MATCH (nod:User)
+MATCH ()-[rels:KNOWS]->()
+WITH collect(nod) as a, collect(rels) as b
+CALL apoc.export.json.data(a, b, "tmp/data.json", null)
+YIELD nodes, relationships, properties, file, source,format, time
+RETURN *
+----
+
+result:
+
+[source,json]
+----
+[ {
+  "id" : 0,
+  "labels" : [ "User" ],
+  "properties" : {
+    "name" : "foo",
+    "age" : "42",
+    "male" : "true",
+    "kids" : [ "a", "b", "c" ]
+  },
+  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
+}, {
+  "id" : 1,
+  "labels" : [ "User" ],
+  "properties" : {
+    "name" : "bar",
+    "age" : "42"
+  },
+  "relationships" : [ "(0)-[KNOWS,0]->(1)" ]
+}, {
+  "id" : 2,
+  "labels" : [ "User" ],
+  "properties" : {
+    "age" : "12"
+  },
+  "relationships" : [ ]
+}, {
+  "id" : 0,
+  "type" : "KNOWS",
+  "properties" : { },
   "start_node_id" : 0,
   "end_node_id" : 1
 } ]
