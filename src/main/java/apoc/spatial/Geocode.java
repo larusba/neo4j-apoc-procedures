@@ -249,7 +249,7 @@ public class Geocode {
     }
 
     public static void checkNullOrEmptyAddress(String address){
-        if (address == null || address.isEmpty() || address.equals(""))
+        if (address == null || address.isEmpty() )
             throw new IllegalArgumentException("Parameter location can't be null or empty");
     }
 }
