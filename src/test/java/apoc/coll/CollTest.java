@@ -269,6 +269,17 @@ public class CollTest {
     }
 
     @Test
+    public void testSortNodesReverse() throws Exception {
+        testCall(db,
+                "CREATE (n {name:'foo'}),(m {name:'bar'}) WITH n,m RETURN apoc.coll.sortNodes([n,m], '^name') AS nodes",
+                (row) -> {
+                    List<Node> nodes = (List<Node>) row.get("nodes");
+                    assertEquals("foo", nodes.get(0).getProperty("name"));
+                    assertEquals("bar", nodes.get(1).getProperty("name"));
+                });
+    }
+
+    @Test
     public void testElements() throws Exception {
         testCall(db,
                 "CREATE p=(n {name:'foo'})-[r:R]->(n) WITH n,r,p CALL apoc.coll.elements([0,null,n,r,p,42,3.14,true,[42],{a:42},13], 9,1) YIELD elements,_1,_7,_10,_2n,_3r,_4p,_5i,_5f,_6i,_6f,_7b,_8l,_9m RETURN *",
@@ -309,6 +320,36 @@ public class CollTest {
                     assertEquals(1, maps.size());
                     assertEquals("bar", maps.get(0).get("name"));
                     assertEquals(32L, maps.get(0).get("age")); // 2nd element
+                });
+    }
+
+    @Test
+    public void testSortMapsCount() throws Exception {
+
+        testCall(db,
+                "WITH ['a','b','c','c','c','b','a','d'] AS l RETURN apoc.coll.sortMaps(apoc.coll.frequencies(l),'count') as maps",
+                (row) -> {
+                    List<Map> maps = (List<Map>) row.get("maps");
+                    assertEquals(4, maps.size());
+                    assertEquals("d", maps.get(0).get("item"));
+                    assertEquals("a", maps.get(1).get("item"));
+                    assertEquals("b", maps.get(2).get("item"));
+                    assertEquals("c", maps.get(3).get("item"));
+                });
+    }
+
+    @Test
+    public void testSortMapsCountReverse() throws Exception {
+
+        testCall(db,
+                "WITH ['b','a','c','c','c','b','a','d'] AS l RETURN apoc.coll.sortMaps(apoc.coll.frequencies(l),'^count') as maps",
+                (row) -> {
+                    List<Map> maps = (List<Map>) row.get("maps");
+                    assertEquals(4, maps.size());
+                    assertEquals("c", maps.get(0).get("item"));
+                    assertEquals("b", maps.get(1).get("item"));
+                    assertEquals("a", maps.get(2).get("item"));
+                    assertEquals("d", maps.get(3).get("item"));
                 });
     }
 
@@ -705,3 +746,4 @@ public class CollTest {
                 });
     }
 }
+
