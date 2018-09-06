@@ -1,5 +1,6 @@
 package apoc.load;
 
+import apoc.load.util.LoadJdbcConfig;
 import apoc.result.RowResult;
 import apoc.ApocConfiguration;
 import apoc.util.MapUtil;
@@ -23,7 +24,9 @@ import java.net.URL;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.sql.*;
+import java.time.*;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -68,20 +71,20 @@ public class Jdbc {
     }
 
     @Procedure
-    @Description("apoc.load.jdbc('key or url','table or kernelTransaction') YIELD row - load from relational database, from a full table or a sql kernelTransaction")
+    @Description("apoc.load.jdbc('key or url','table or kernelTransaction', config) YIELD row - load from relational database, from a full table or a sql kernelTransaction")
     public Stream<RowResult> jdbc(@Name("jdbc") String urlOrKey, @Name("tableOrSql") String tableOrSelect, @Name
-            (value = "params", defaultValue = "[]") List<Object> params) {
-        return executeQuery(urlOrKey, tableOrSelect, params.toArray(new Object[params.size()]));
+            (value = "params", defaultValue = "[]") List<Object> params, @Name(value = "config",defaultValue = "{}") Map<String, Object> config) {
+        return executeQuery(urlOrKey, tableOrSelect, config, params.toArray(new Object[params.size()]));
     }
 
     @Procedure
     @Deprecated
     @Description("deprecated - please use: apoc.load.jdbc('key or url','kernelTransaction',[params]) YIELD row - load from relational database, from a sql kernelTransaction with parameters")
-    public Stream<RowResult> jdbcParams(@Name("jdbc") String urlOrKey, @Name("sql") String select, @Name("params") List<Object> params) {
-        return executeQuery(urlOrKey, select,params.toArray(new Object[params.size()]));
+    public Stream<RowResult> jdbcParams(@Name("jdbc") String urlOrKey, @Name("sql") String select, @Name("params") List<Object> params, @Name(value = "config",defaultValue = "{}") Map<String, Object> config) {
+        return executeQuery(urlOrKey, select, config, params.toArray(new Object[params.size()]));
     }
 
-    private Stream<RowResult> executeQuery(String urlOrKey, String tableOrSelect, Object...params) {
+    private Stream<RowResult> executeQuery(String urlOrKey, String tableOrSelect, Map<String, Object> config, Object... params) {
         String url = urlOrKey.contains(":") ? urlOrKey : getJdbcUrl(urlOrKey);
         String query = tableOrSelect.indexOf(' ') == -1 ? "SELECT * FROM " + tableOrSelect : tableOrSelect;
         try {
@@ -92,7 +95,7 @@ public class Jdbc {
                     for (int i = 0; i < params.length; i++) stmt.setObject(i + 1, params[i]);
                     ResultSet rs = stmt.executeQuery();
                     rs.setFetchSize(5000);
-                    Iterator<Map<String, Object>> supplier = new ResultSetIterator(log, rs, true);
+                    Iterator<Map<String, Object>> supplier = new ResultSetIterator(log, rs, true, config);
                     Spliterator<Map<String, Object>> spliterator = Spliterators.spliteratorUnknownSize(supplier, Spliterator.ORDERED);
                     return StreamSupport.stream(spliterator, false)
                             .map(RowResult::new)
@@ -125,7 +128,7 @@ public class Jdbc {
         try {
             Connection connection = getConnection(url);
             try {
-            PreparedStatement stmt = connection.prepareStatement(query);
+                PreparedStatement stmt = connection.prepareStatement(query);
                 try {
                     for (int i = 0; i < params.length; i++) stmt.setObject(i + 1, params[i]);
                     int updateCount = stmt.executeUpdate();
@@ -174,8 +177,10 @@ public class Jdbc {
         private final String[] columns;
         private final boolean closeConnection;
         private Map<String, Object> map;
+        private Map<String, Object> config;
 
-        public ResultSetIterator(Log log, ResultSet rs, boolean closeConnection) throws SQLException {
+        public ResultSetIterator(Log log, ResultSet rs, boolean closeConnection, Map<String, Object> config) throws SQLException {
+            this.config = config;
             this.log = log;
             this.rs = rs;
             this.columns = getMetaData(rs);
@@ -221,11 +226,23 @@ public class Jdbc {
         }
 
         private Object convert(Object value) {
+
             if (value instanceof UUID || value instanceof BigInteger || value instanceof BigDecimal) {
                 return value.toString();
             }
             if (value instanceof java.util.Date) {
-                return ((java.util.Date) value).getTime();
+                if(!config.isEmpty()){
+                    LoadJdbcConfig loadJdbcConfig = new LoadJdbcConfig(config);
+                    Instant instant = Instant.ofEpochMilli(((Date) value).getTime());
+                    ZoneId timezone = loadJdbcConfig.zoneId();
+                    if(loadJdbcConfig.localDateTime()) return instant.atZone(timezone).toLocalDateTime();
+                    if(loadJdbcConfig.localDate()) return instant.atZone(timezone).toLocalDate();
+                    if(loadJdbcConfig.zoneDateTime()) return instant.atZone(timezone);
+                    if(loadJdbcConfig.offSetTime()) return OffsetDateTime.ofInstant(instant, timezone);
+                    return ((java.util.Date) value).getTime();
+                } else {
+                    return ((java.util.Date) value).getTime();
+                }
             }
             return value;
         }

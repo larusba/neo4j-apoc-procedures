@@ -458,3 +458,52 @@ You can call the procedure without param:
 ----
 CALL apoc.load.jdbcUpdate('jdbc:mysql:....','INSERT INTO RECOMMENDATIONS values(user.id, reco.id, score)') YIELD row;
 ----
+
+
+=== Load JDBC format date
+
+[source, cypher]
+----
+CALL apoc.load.jdbc('key or url','table or kernelTransaction', config) YIELD row
+----
+
+=== Config
+
+Config param is optional, the default value is an empty map.
+
+[cols="3m,2"]
+|===
+|localDateTime| value: true/false i.e "2007-12-03T10:15:30"
+|localDate| value: true/false i.e "2007-12-03"
+|zoneDateTime| value: true/false i.e "2007-12-03T10:15:30+01:00 Europe/Paris"
+|offSetTime| value: true/false i.e "2007-12-03T10:15:30+01:00"
+|timezone| default value: 'UTC'
+|===
+
+Example:
+
+The "HIRE_DATE" field is in the Timestamp format
+
+[source, cypher]
+----
+CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT HIRE_DATE FROM PERSON WHERE NAME = ?',['John'], {localDateTime: true})
+----
+
+Return the date formatted in localDateTime:
+
+[source, cypher]
+----
+2017-05-24T22:00
+----
+
+[source, cypher]
+----
+CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT HIRE_DATE FROM PERSON WHERE NAME = ?',['John'], {zoneDateTime: true})
+----
+
+Return the date formatted in zoneDateTime:
+
+[source, cypher]
+----
+2017-05-24T22:00Z[UTC]
+----

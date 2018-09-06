@@ -9,7 +9,7 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.sql.*;
-import java.time.Instant;
+import java.time.*;
 import java.util.Calendar;
 import java.util.Properties;
 
@@ -66,6 +66,46 @@ public class JdbcTest {
     }
 
     @Test
+    public void testLoadJdbcParamsWithConfigLocalDateTime() throws Exception {
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+                map("config", map("localDateTime", true)),
+                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", "2017-05-24T22:00","EFFECTIVE_FROM_DATE",
+                        Instant.ofEpochMilli(effectiveFromDate.getTime()).atZone(ZoneId.of("UTC")).toLocalDateTime()).toString(), row.get("row").toString()));
+    }
+
+    @Test
+    public void testLoadJdbcParamsWithConfigLocalDate() throws Exception {
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+                map("config", map("localDate", true)),
+                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", "2017-05-24","EFFECTIVE_FROM_DATE",
+                        Instant.ofEpochMilli(effectiveFromDate.getTime()).atZone(ZoneId.of("UTC")).toLocalDate()).toString(), row.get("row").toString()));
+    }
+
+    @Test
+    public void testLoadJdbcParamsWithConfigZoneDateTime() throws Exception {
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+                map("config", map("zoneDateTime", true)),
+                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", "2017-05-24T22:00Z[UTC]","EFFECTIVE_FROM_DATE",
+                        Instant.ofEpochMilli(effectiveFromDate.getTime()).atZone(ZoneId.of("UTC"))).toString(), row.get("row").toString()));
+    }
+
+    @Test
+    public void testLoadJdbcParamsWithConfigOffDateTime() throws Exception {
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+                map("config", map("offSetTime", true)),
+                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", "2017-05-24T22:00Z","EFFECTIVE_FROM_DATE",
+                        OffsetDateTime.ofInstant(Instant.ofEpochMilli(((java.util.Date) effectiveFromDate).getTime()), ZoneId.of("UTC"))).toString(), row.get("row").toString()));
+    }
+
+    @Test
+    public void testLoadJdbcParamsWithConfigWrongName() throws Exception {
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+                map("config", map("wrongConfig", true)),
+                (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", "1495663200000","EFFECTIVE_FROM_DATE",
+                        effectiveFromDate.getTime()).toString(), row.get("row").toString()));
+    }
+
+    @Test
     public void testLoadJdbcKey() throws Exception {
         testCall(db, "CALL apoc.load.jdbc('derby','PERSON')",
                 (row) -> assertEquals( Util.map("NAME", "John", "HIRE_DATE", hireDate.getTime(),"EFFECTIVE_FROM_DATE",
@@ -100,7 +140,7 @@ public class JdbcTest {
         Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
         Connection conn = DriverManager.getConnection("jdbc:derby:derbyDB;create=true", new Properties());
         try { conn.createStatement().execute("DROP TABLE PERSON"); } catch (SQLException se) {/*ignore*/}
-        conn.createStatement().execute("CREATE TABLE PERSON (NAME varchar(50), HIRE_DATE DATE, EFFECTIVE_FROM_DATE TIMESTAMP )");
+        conn.createStatement().execute("CREATE TABLE PERSON (NAME varchar(50), HIRE_DATE DATE, EFFECTIVE_FROM_DATE TIMESTAMP)");
         PreparedStatement ps = conn.prepareStatement("INSERT INTO PERSON values(?,?,?)");
         ps.setString(1, "John");
         ps.setDate(2, hireDate);
@@ -115,4 +155,5 @@ public class JdbcTest {
         assertEquals(false, rs.next());
         rs.close();
     }
+
 }
