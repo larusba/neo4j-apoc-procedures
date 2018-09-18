@@ -50,7 +50,7 @@ public class ExportJsonTest {
     public void testExportAllJson() throws Exception {
         String filename = "all.json";
         File output = new File(directory, filename);
-        TestUtil.testCall(db, "CALL apoc.export.json.all({file},null)", map("file", output.getAbsolutePath()),
+        TestUtil.testCall(db, "CALL apoc.export.json.all({file})", map("file", output.getAbsolutePath()),
                 (r) -> {
                     assertResults(output, r, "database");
                 }
@@ -191,6 +191,32 @@ public class ExportJsonTest {
         assertEquals(jsonResults.get("query_nodes_path"), new Scanner(output).useDelimiter("\\Z").next());
     }
 
+    @Test
+    public void testExportAllWithDataTypesJson() throws Exception {
+        String filename = "all.json";
+        File output = new File(directory, filename);
+        TestUtil.testCall(db, "CALL apoc.export.json.all({file},{writeDataTypes:true})", map("file", output.getAbsolutePath()),
+                (r) -> {
+                    assertResults(output, r, "database");
+                }
+        );
+        assertEquals(jsonResults.get("all_with_datatypes"), new Scanner(output).useDelimiter("\\Z").next());
+    }
+
+    @Test
+    public void testExportQueryWithDataTypesJson() throws Exception {
+        String filename = "query.json";
+        File output = new File(directory, filename);
+        String query = "MATCH (u:User) return u.age, u.name, u.male, u.kids, labels(u)";
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file},{useTypes:true})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(5)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertEquals(jsonResults.get("query_with_datatypes"), new Scanner(output).useDelimiter("\\Z").next());
+    }
+
     private void assertResults(File output, Map<String, Object> r, final String source) {
         assertEquals(3L, r.get("nodes"));
         assertEquals(1L, r.get("relationships"));
@@ -248,5 +274,14 @@ public class ExportJsonTest {
 
         jsonResults.put("query_two_nodes", "{\"u\":{\"type\":\"node\",\"id\":0,\"labels\":[\"User\"],\"data\":{\"name\":\"foo\",\"age\":42,\"male\":true,\"kids\":[\"a\",\"b\",\"c\"]}}," +
                 "\"l\":{\"type\":\"node\",\"id\":1,\"labels\":[\"User\"],\"data\":{\"name\":\"bar\",\"age\":42}}}");
+
+        jsonResults.put("all_with_datatypes", "{\"type\":\"node\",\"id\":0,\"labels\":[\"User\"],\"data\":{\"name\":\"foo\",\"age\":42,\"male\":true,\"kids\":[\"a\",\"b\",\"c\"]},\"data_types\":{\"name\":\"String\",\"age\":\"Long\",\"male\":\"Boolean\",\"kids\":\"String[]\"}}\n" +
+                "{\"type\":\"node\",\"id\":1,\"labels\":[\"User\"],\"data\":{\"name\":\"bar\",\"age\":42},\"data_types\":{\"name\":\"String\",\"age\":\"Long\"}}\n" +
+                "{\"type\":\"node\",\"id\":2,\"labels\":[\"User\"],\"data\":{\"age\":12},\"data_types\":{\"age\":\"Long\"}}\n" +
+                "{\"type\":\"relationship\",\"id\":0,\"label\":\"KNOWS\",\"data\":{},\"data_types\":{},\"start\":0,\"end\":1}");
+
+        jsonResults.put("query_with_datatypes", "{\"data\":{\"u.age\":42,\"data_types\":{\"u.age\":\"long\"},\"u.name\":\"foo\",\"data_types\":{\"u.name\":\"string\"},\"u.male\":true,\"data_types\":{\"u.male\":\"boolean\"},\"u.kids\":[\"a\",\"b\",\"c\"],\"data_types\":{\"u.kids\":\"string[]\"},\"labels(u)\":[\"User\"],\"data_types\":{\"labels(u)\":\"arraylist\"}}}\n" +
+                "{\"data\":{\"u.age\":42,\"data_types\":{\"u.age\":\"long\"},\"u.name\":\"bar\",\"data_types\":{\"u.name\":\"string\"},\"u.male\":null,\"u.kids\":null,\"labels(u)\":[\"User\"],\"data_types\":{\"labels(u)\":\"arraylist\"}}}\n" +
+                "{\"data\":{\"u.age\":12,\"data_types\":{\"u.age\":\"long\"},\"u.name\":null,\"u.male\":null,\"u.kids\":null,\"labels(u)\":[\"User\"],\"data_types\":{\"labels(u)\":\"arraylist\"}}}");
     }
 }

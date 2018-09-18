@@ -1,5 +1,6 @@
 package apoc.export.json;
 
+import apoc.export.util.ExportConfig;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.spatial.Point;
@@ -8,12 +9,13 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public enum JsonFormatSerializer {
 
     DEFAULT() {
         @Override
-        public void writeNode(JsonGenerator jsonGenerator, long id, Iterable<Label> labels, Map<String,Object> properties) throws IOException {
+        public void writeNode(JsonGenerator jsonGenerator, long id, Iterable<Label> labels, Map<String,Object> properties, ExportConfig config) throws IOException {
 
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField("type", "node");
@@ -21,25 +23,25 @@ public enum JsonFormatSerializer {
             jsonGenerator.writeArrayFieldStart("labels");
             for (Label label : labels) { jsonGenerator.writeString(label.toString()); }
             jsonGenerator.writeEndArray();
-            serializeProperties(jsonGenerator, properties);
+            serializeProperties(jsonGenerator, properties, config);
             jsonGenerator.writeEndObject();
         }
 
         @Override
-        public void writeRelationship(JsonGenerator jsonGenerator, long id, long startNodeId, long endNodeId, String type, Map<String,Object> properties) throws IOException {
+        public void writeRelationship(JsonGenerator jsonGenerator, long id, long startNodeId, long endNodeId, String type, Map<String,Object> properties, ExportConfig config) throws IOException {
 
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField("type", "relationship");
             jsonGenerator.writeNumberField("id", id);
             jsonGenerator.writeStringField("label", type);
-            serializeProperties(jsonGenerator, properties);
+            serializeProperties(jsonGenerator, properties, config);
             jsonGenerator.writeNumberField("start", startNodeId);
             jsonGenerator.writeNumberField("end", endNodeId);
             jsonGenerator.writeEndObject();
         }
 
         @Override
-        public void serializeProperties(JsonGenerator jsonGenerator, Map<String, Object> properties) throws IOException {
+        public void serializeProperties(JsonGenerator jsonGenerator, Map<String, Object> properties, ExportConfig config) throws IOException {
             jsonGenerator.writeObjectFieldStart("data");
             for (Map.Entry<String, Object> entry : properties.entrySet()) {
                 String key = entry.getKey();
@@ -47,6 +49,10 @@ public enum JsonFormatSerializer {
                 serializeProperty(jsonGenerator, key, value);
             }
             jsonGenerator.writeEndObject();
+            if(config.useTypes()) {
+                writeDataTypes(jsonGenerator, properties);
+            }
+
         }
 
         @Override
@@ -74,13 +80,23 @@ public enum JsonFormatSerializer {
                 }
         }
 
+        @Override
+        public void writeDataTypes(JsonGenerator jsonGenerator, Map<String, Object> properties) throws IOException {
+            Map<String, String> dataTypes = properties.entrySet().stream()
+                    .collect(Collectors.toMap(k -> k.getKey(), v -> v.getValue().getClass().getSimpleName().toLowerCase()));
+
+            jsonGenerator.writeObjectField("data_types",dataTypes);
+        }
+
     };
 
-    public abstract void writeNode(JsonGenerator jsonGenerator, long id, Iterable<Label> labels, Map<String,Object> properties) throws IOException;
+    public abstract void writeNode(JsonGenerator jsonGenerator, long id, Iterable<Label> labels, Map<String,Object> properties, ExportConfig config) throws IOException;
 
-    public abstract void writeRelationship(JsonGenerator jsonGenerator, long id, long startNodeId, long endNodeId, String type, Map<String,Object> properties) throws IOException;
+    public abstract void writeRelationship(JsonGenerator jsonGenerator, long id, long startNodeId, long endNodeId, String type, Map<String,Object> properties, ExportConfig config) throws IOException;
 
-    public abstract void serializeProperties(JsonGenerator jsonGenerator, Map<String,Object> properties) throws IOException;
+    public abstract void serializeProperties(JsonGenerator jsonGenerator, Map<String,Object> properties, ExportConfig config) throws IOException;
 
     public abstract void serializeProperty(JsonGenerator jsonGenerator, String key, Object value) throws IOException;
+
+    public abstract void writeDataTypes(JsonGenerator jsonGenerator, Map<String, Object> properties) throws IOException;
 }

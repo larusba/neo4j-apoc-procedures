@@ -16,6 +16,11 @@ apoc.export.file.enabled=true
 | apoc.export.json.graph(graph,file,config) | exports given graph object as Json to the provided file
 |===
 // end::export.json[]
+
+Config parameter available is:
+
+* **writeDataTypes** : true/false, if true export the datatypes too.
+
 == Examples
 
 For the examples below we create the following dataset:
@@ -45,17 +50,17 @@ result:
 
 [source,cypher]
 ----
-CALL apoc.export.json.all("/tmp/all.json",null)
+CALL apoc.export.json.all("/tmp/all.json",{writeDataTypes:true})
 ----
 
 result:
 
 [source,json]
 ----
-{"type":"node","id":0,"labels":["User"],"data":{"name":"foo","age":"42","male":"true","kids":["a","b","c"]}}
-{"type":"node","id":1,"labels":["User"],"data":{"name":"bar","age":"42"}}
-{"type":"node","id":2,"labels":["User"],"data":{"age":"12"}}
-{"type":"relationship","id":0,"label":"KNOWS","data":{},"start":0,"end":1}
+{"type":"node","id":0,"labels":["User"],"data":{"name":"foo","age":42,"male":true,"kids":["a","b","c"]},"data_types":{"name":"String","age":"Long","male":"Boolean","kids":"String[]"}}"
+{"type":"node","id":1,"labels":["User"],"data":{"name":"bar","age":42},"data_types":{"name":"String","age":"Long"}}
+{"type":"node","id":2,"labels":["User"],"data":{"age":12},"data_types":{"age":"Long"}}
+{"type":"relationship","id":0,"label":"KNOWS","data":{},"data_types":{},"start":0,"end":1}
 ----
 
 .Export graph

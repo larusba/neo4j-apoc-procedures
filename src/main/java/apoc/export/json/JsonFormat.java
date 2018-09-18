@@ -15,6 +15,7 @@ import org.neo4j.graphdb.*;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -40,9 +41,8 @@ public class JsonFormat implements Format {
             JsonGenerator jsonGenerator = jsonF.createGenerator(writer);
             jsonGenerator.setCodec(OBJECT_MAPPER);
             jsonGenerator.setPrettyPrinter(new MinimalPrettyPrinter("\n"));
-            writeNodes(graph, reporter, jsonGenerator);
-            writeRels(graph, reporter, jsonGenerator);
-
+            writeNodes(graph, reporter, jsonGenerator, config);
+            writeRels(graph, reporter, jsonGenerator, config);
             jsonGenerator.close();
             tx.success();
             writer.close();
@@ -52,30 +52,30 @@ public class JsonFormat implements Format {
         }
     }
 
-    private void writeNodes(SubGraph graph, Reporter reporter, JsonGenerator jsonGenerator) throws IOException {
+    private void writeNodes(SubGraph graph, Reporter reporter, JsonGenerator jsonGenerator, ExportConfig config) throws IOException {
         for (Node node : graph.getNodes()) {
 
-            writeNode(reporter, jsonGenerator, node);
+            writeNode(reporter, jsonGenerator, node, config);
         }
     }
 
-    private void writeNode(Reporter reporter, JsonGenerator jsonGenerator, Node node) throws IOException {
+    private void writeNode(Reporter reporter, JsonGenerator jsonGenerator, Node node, ExportConfig config) throws IOException {
         Map<String, Object> allProperties = node.getAllProperties();
 
-        JsonFormatSerializer.DEFAULT.writeNode(jsonGenerator, node.getId(), node.getLabels(), allProperties);
+        JsonFormatSerializer.DEFAULT.writeNode(jsonGenerator, node.getId(), node.getLabels(), allProperties, config);
         reporter.update(1, 0, allProperties.size());
     }
 
-    private void writeRels(SubGraph graph, Reporter reporter, JsonGenerator jsonGenerator) throws IOException {
+    private void writeRels(SubGraph graph, Reporter reporter, JsonGenerator jsonGenerator, ExportConfig config) throws IOException {
         for (Relationship rel : graph.getRelationships()) {
 
-            writeRel(reporter, jsonGenerator, rel);
+            writeRel(reporter, jsonGenerator, rel, config);
         }
     }
 
-    private void writeRel(Reporter reporter, JsonGenerator jsonGenerator, Relationship rel) throws IOException {
+    private void writeRel(Reporter reporter, JsonGenerator jsonGenerator, Relationship rel, ExportConfig config) throws IOException {
         Map<String, Object> allProperties = rel.getAllProperties();
-        JsonFormatSerializer.DEFAULT.writeRelationship(jsonGenerator, rel.getId(), rel.getStartNodeId(), rel.getEndNodeId(), rel.getType().name(), allProperties);
+        JsonFormatSerializer.DEFAULT.writeRelationship(jsonGenerator, rel.getId(), rel.getStartNodeId(), rel.getEndNodeId(), rel.getType().name(), allProperties, config);
         reporter.update(0, 1, allProperties.size());
     }
 
@@ -90,7 +90,7 @@ public class JsonFormat implements Format {
             jsonGenerator.setCodec(OBJECT_MAPPER);
 
             result.accept((row) -> {
-                writeJsonResult(reporter, header, jsonGenerator, row);
+                writeJsonResult(reporter, header, jsonGenerator, row, config);
                 reporter.nextRow();
                 return true;
             });
@@ -102,7 +102,7 @@ public class JsonFormat implements Format {
         }
     }
 
-    private void writeJsonResult(Reporter reporter, String[] header, JsonGenerator jsonGenerator, Result.ResultRow row) throws IOException {
+    private void writeJsonResult(Reporter reporter, String[] header, JsonGenerator jsonGenerator, Result.ResultRow row, ExportConfig config) throws IOException {
 
         boolean isMap = Stream.of(header).allMatch(col ->{
             Object value = row.get(col);
@@ -117,6 +117,7 @@ public class JsonFormat implements Format {
                 String keyName = header[col];
                 Object value = row.get(keyName);
                 JsonFormatSerializer.DEFAULT.serializeProperty(jsonGenerator, keyName, value);
+                checkWriteDataTypes(jsonGenerator,config,keyName,value);
                 reporter.update(0, 0, 1);
             }
             jsonGenerator.writeEndObject();
@@ -131,22 +132,22 @@ public class JsonFormat implements Format {
                     jsonGenerator.writeNullField(keyName);
                 } else if (value instanceof Node) {
                     jsonGenerator.writeFieldName(keyName);
-                    writeNode(reporter, jsonGenerator, (Node) value);
+                    writeNode(reporter, jsonGenerator, (Node) value, config);
                 } else if (value instanceof Relationship) {
                     jsonGenerator.writeFieldName(keyName);
-                    writeRel(reporter, jsonGenerator, (Relationship) value);
+                    writeRel(reporter, jsonGenerator, (Relationship) value, config);
                 } else if (value instanceof Path) {
                     jsonGenerator.writeFieldName(keyName);
                     jsonGenerator.writeStartObject();
                     jsonGenerator.writeFieldName("startNode");
                     Path path = (Path) value;
-                    writeNode(reporter, jsonGenerator, path.startNode());
+                    writeNode(reporter, jsonGenerator, path.startNode(), config);
                     jsonGenerator.writeFieldName("relationship");
                     for (Relationship rel : path.relationships()) {
-                        writeRel(reporter, jsonGenerator, rel);
+                        writeRel(reporter, jsonGenerator, rel, config);
                     }
                     jsonGenerator.writeFieldName("endNode");
-                    writeNode(reporter, jsonGenerator, path.endNode());
+                    writeNode(reporter, jsonGenerator, path.endNode(), config);
                     jsonGenerator.writeEndObject();
                 } else if (!(value instanceof PropertyContainer)) {
                     JsonFormatSerializer.DEFAULT.serializeProperty(jsonGenerator, keyName, value);
@@ -156,6 +157,14 @@ public class JsonFormat implements Format {
             jsonGenerator.writeEndObject();
         }
 
+    }
+
+    private void checkWriteDataTypes(JsonGenerator jsonGenerator, ExportConfig config, String keyName, Object value) throws IOException {
+        if(config.useTypes() && value !=null) {
+            Map<String, Object> m = new HashMap<>();
+            m.put(keyName, value);
+            JsonFormatSerializer.DEFAULT.writeDataTypes(jsonGenerator, m);
+        }
     }
 
 }

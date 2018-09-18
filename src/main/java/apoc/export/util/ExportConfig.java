@@ -57,13 +57,14 @@ public class ExportConfig {
         return cypherFormat;
     }
 
+
     public ExportConfig(Map<String,Object> config) {
         config = config != null ? config : Collections.emptyMap();
         this.silent = toBoolean(config.getOrDefault("silent",false));
         this.batchSize = ((Number)config.getOrDefault("batchSize", DEFAULT_BATCH_SIZE)).intValue();
         this.delim = delim(config.getOrDefault("d", String.valueOf(DEFAULT_DELIM)).toString());
         this.quotes = toBoolean(config.get("quotes"));
-        this.useTypes = toBoolean(config.get("useTypes"));
+        this.useTypes = toBoolean(config.getOrDefault("useTypes", false));
         this.nodesOfRelationships = toBoolean(config.get("nodesOfRelationships"));
         this.format = ExportFormat.fromString((String) config.getOrDefault("format", "neo4j-shell"));
         this.cypherFormat = CypherFormat.fromString((String) config.getOrDefault("cypherFormat", "create"));
