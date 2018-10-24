@@ -9,14 +9,15 @@ import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
+import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.*;
 
+import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -39,7 +40,7 @@ public class Meta {
     public KernelTransaction kernelTx;
 
     public enum Types {
-        INTEGER,FLOAT,STRING,BOOLEAN,RELATIONSHIP,NODE,PATH,NULL,UNKNOWN,MAP,LIST;
+        INTEGER,FLOAT,STRING,BOOLEAN,RELATIONSHIP,NODE,PATH,NULL,UNKNOWN,MAP,LIST,TEMPORAL,POINT;
 
         public static Types of(Object value) {
             return of(value == null ? null : value.getClass());
@@ -61,6 +62,8 @@ public class Meta {
             if (Relationship.class.isAssignableFrom(type)) return RELATIONSHIP;
             if (Path.class.isAssignableFrom(type)) return PATH;
             if (Iterable.class.isAssignableFrom(type)) return LIST;
+            if (TemporalAccessor.class.isAssignableFrom(type)) return TEMPORAL;
+            if (Point.class.isAssignableFrom(type)) return POINT;
             return UNKNOWN;
         }
 
@@ -513,11 +516,11 @@ public class Meta {
                 if (key.equals(prop)) {
                     switch (constraint.getConstraintType()) {
                         case UNIQUENESS: res.unique = true;
-                        node.getLabels().forEach(l -> {
-                            if(res.label != l.name())
-                                res.addLabel(l.name());
-                        });
-                        break;
+                            node.getLabels().forEach(l -> {
+                                if(res.label != l.name())
+                                    res.addLabel(l.name());
+                            });
+                            break;
                         case NODE_PROPERTY_EXISTENCE:res.existence = true; break;
                         case RELATIONSHIP_PROPERTY_EXISTENCE: res.existence = true; break;
                     }

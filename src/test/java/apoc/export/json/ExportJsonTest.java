@@ -1,46 +1,47 @@
 package apoc.export.json;
 
-import apoc.export.util.JsonResults;
 import apoc.graph.Graphs;
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import apoc.util.Util;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-import org.mortbay.util.ajax.JSON;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.io.File;
-import java.util.HashMap;
+import java.io.FileNotFoundException;
 import java.util.Map;
 import java.util.Scanner;
 
 import static apoc.util.MapUtil.map;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ExportJsonTest {
 
     private static GraphDatabaseService db;
     private static File directory = new File("target/import");
+    private static File directoryExpected = new File("docs/data/exportJSON");
 
     static { //noinspection ResultOfMethodCallIgnored
         directory.mkdirs();
     }
 
-    @BeforeClass
-    public static void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         db = new TestGraphDatabaseFactory()
                 .newImpermanentDatabaseBuilder()
                 .setConfig(GraphDatabaseSettings.load_csv_file_url_root, directory.getAbsolutePath())
                 .setConfig("apoc.export.file.enabled", "true")
                 .newGraphDatabase();
         TestUtil.registerProcedure(db, ExportJson.class, Graphs.class);
-        db.execute("CREATE (f:User {name:'foo',age:42,male:true,kids:['a','b','c']})-[:KNOWS]->(b:User {name:'bar',age:42}),(c:User {age:12})").close();
+        db.execute("CREATE (f:User {name:'Adam',age:42,male:true,kids:['Sam','Anna','Grace'], born:localdatetime('2015185T19:32:24'), place:point({latitude: 13.1, longitude: 33.46789})})-[:KNOWS {since: 1993}]->(b:User {name:'Jim',age:42}),(c:User {age:12})").close();
     }
 
-    @AfterClass
-    public static void tearDown() {
+    @After
+    public void tearDown() {
         db.shutdown();
     }
 
@@ -53,15 +54,14 @@ public class ExportJsonTest {
                     assertResults(output, r, "database");
                 }
         );
-        assertEquals(JsonResults.expectedAllGraphData(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
     public void testExportPointMapDatetimeJson() throws Exception {
         String filename = "mapPointDatetime.json";
         File output = new File(directory, filename);
-        //String query = "return time() as date";
-        String query = "return {a: 1, b: {c: 1, d:'a', e: {f: [1,3,5]}}} as map, " +
+        String query = "return {data: 1, value: {age: 12, name:'Mike', data: {number: [1,3,5], born: date(), place: point({latitude: 13.1, longitude: 33.46789})}}} as map, " +
                 "datetime('2015-06-24T12:50:35.556+0100') AS theDateTime, " +
                 "localdatetime('2015185T19:32:24') AS theLocalDateTime," +
                 "point({latitude: 13.1, longitude: 33.46789}) as point," +
@@ -70,11 +70,124 @@ public class ExportJsonTest {
                 "localTime('12:50:35.556') as localTime";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(7)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(7)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedMapPointDatetime(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportListNode() throws Exception {
+        String filename = "listNode.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH (u:User) RETURN COLLECT(u) as list";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportListRel() throws Exception {
+        String filename = "listRel.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH (u:User)-[rel:KNOWS]->(u2:User) RETURN COLLECT(rel) as list";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportListPath() throws Exception {
+        String filename = "listPath.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH p = (u:User)-[rel]->(u2:User) RETURN COLLECT(p) as list";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportMap() throws Exception {
+        String filename = "MapNode.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH (u:User)-[r:KNOWS]->(d:User) RETURN u {.*}, d {.*}, r {.*}";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(3)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportMapPath() throws Exception {
+        db.execute("CREATE (f:User {name:'Mike',age:78,male:true})-[:KNOWS {since: 1850}]->(b:User {name:'John',age:18}),(c:User {age:39})").close();
+        String filename = "MapPath.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH path = (u:User)-[rel:KNOWS]->(u2:User) RETURN {key:path} as map, 'Kate' as name";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(2)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportMapRel() throws Exception {
+        String filename = "MapRel.json";
+        File output = new File(directory, filename);
+
+        String query = "MATCH p = (u:User)-[rel:KNOWS]->(u2:User) RETURN rel {.*}";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
+    }
+
+    @Test
+    public void testExportMapComplex() throws Exception {
+        String filename = "MapComplex.json";
+        File output = new File(directory, filename);
+
+        String query = "RETURN {value:1, data:[10,'car',null, point({ longitude: 56.7, latitude: 12.78 }), point({ longitude: 56.7, latitude: 12.78, height: 8 }), point({ x: 2.3, y: 4.5 }), point({ x: 2.3, y: 4.5, z: 2 }),date('2018-10-10'), datetime('2018-10-18T14:21:40.004Z'), localdatetime({ year:1984, week:10, dayOfWeek:3, hour:12, minute:31, second:14, millisecond: 645 }), {x:1, y:[1,2,3,{age:10}]}]} as key";
+
+        TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
+                (r) -> {
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    assertEquals("json", r.get("format"));
+                });
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -86,7 +199,7 @@ public class ExportJsonTest {
                         "YIELD nodes, relationships, properties, file, source,format, time " +
                         "RETURN *", map("file", output.getAbsolutePath()),
                 (r) -> assertResults(output, r, "graph"));
-        assertEquals(JsonResults.expectedAllGraphData(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -96,11 +209,11 @@ public class ExportJsonTest {
         String query = "MATCH (u:User) return u.age, u.name, u.male, u.kids, labels(u)";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(5)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(5)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryData(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -110,25 +223,25 @@ public class ExportJsonTest {
         String query = "MATCH (u:User) return u";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryNodes(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
     public void testExportQueryTwoNodesJson() throws Exception {
         String filename = "query_two_nodes.json";
         File output = new File(directory, filename);
-        String query = "MATCH (u:User{name:'foo'}), (l:User{name:'bar'}) return u, l";
+        String query = "MATCH (u:User{name:'Adam'}), (l:User{name:'Jim'}) return u, l";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(2)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(2)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryTwoNodes(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -138,11 +251,11 @@ public class ExportJsonTest {
         String query = "MATCH (u:User) WHERE u.age > {age} return u";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file},{params:{age:10}})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryNodes(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -152,11 +265,11 @@ public class ExportJsonTest {
         String query = "MATCH (n) return count(n)";
         TestUtil.testCall(db, "CALL apoc.export.json.query({query},{file})", map("file", output.getAbsolutePath(),"query",query),
                 (r) -> {
-                    assertEquals(true,r.get("source").toString().contains("kernelTransaction: cols(1)"));
+                    assertTrue(r.get("source").toString().contains("kernelTransaction: cols(1)"));
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryNodesCount(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -165,15 +278,15 @@ public class ExportJsonTest {
         File output = new File(directory, filename);
         TestUtil.testCall(db, "MATCH (nod:User) " +
                         "MATCH ()-[reels:KNOWS]->() " +
-                        "WITH collect(nod) as a, collect(reels) as b "+
-                        "CALL apoc.export.json.data(a, b, {file}, null) " +
+                        "WITH collect(nod) as node, collect(reels) as rels "+
+                        "CALL apoc.export.json.data(node, rels, {file}, null) " +
                         "YIELD nodes, relationships, properties, file, source,format, time " +
                         "RETURN *", map("file", output.getAbsolutePath()),
                 (r) -> {
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedAllGraphData(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -186,7 +299,7 @@ public class ExportJsonTest {
                     assertEquals(output.getAbsolutePath(), r.get("file"));
                     assertEquals("json", r.get("format"));
                 });
-        assertEquals(JsonResults.expectedQueryPath(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     @Test
@@ -194,20 +307,25 @@ public class ExportJsonTest {
         String filename = "all.json";
         File output = new File(directory, filename);
         TestUtil.testCall(db, "CALL apoc.export.json.all({file},{useTypes:true})", map("file", output.getAbsolutePath()),
-                (r) -> {
-                    assertResults(output, r, "database");
-                }
+                (r) -> assertResults(output, r, "database")
         );
-        assertEquals(JsonResults.expectedAllWithDataTypes(), new Scanner(output).useDelimiter("\\Z").next());
+        assertFileEquals(filename, output);
     }
 
     private void assertResults(File output, Map<String, Object> r, final String source) {
         assertEquals(3L, r.get("nodes"));
         assertEquals(1L, r.get("relationships"));
-        assertEquals(7L, r.get("properties"));
+        assertEquals(10L, r.get("properties"));
         assertEquals(source + ": nodes(3), rels(1)", r.get("source"));
         assertEquals(output.getAbsolutePath(), r.get("file"));
         assertEquals("json", r.get("format"));
-        assertEquals(true, ((long) r.get("time")) >= 0);
+        assertTrue(((long) r.get("time")) >= 0);
+    }
+
+    private void assertFileEquals(String filename, File output) throws FileNotFoundException {
+
+        File expexted = new File(directoryExpected, filename);
+
+        assertEquals(new Scanner(expexted).useDelimiter("\\Z").next(), new Scanner(output).useDelimiter("\\Z").next());
     }
 }

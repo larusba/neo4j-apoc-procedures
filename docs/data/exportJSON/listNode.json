@@ -1,0 +1,1 @@
+{"list":[{"id":0,"type":"node","labels":["User"],"properties":{"born":"2015-07-04T19:32:24","name":"Adam","place":{"crs":"wgs-84","latitude":33.46789,"longitude":13.1,"height":null},"age":42,"male":true,"kids":["Sam","Anna","Grace"]}},{"id":1,"type":"node","labels":["User"],"properties":{"name":"Jim","age":42}},{"id":2,"type":"node","labels":["User"],"properties":{"age":12}}]}
