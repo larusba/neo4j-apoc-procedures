@@ -4,9 +4,12 @@ import apoc.export.util.FormatUtils;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.values.storable.DurationValue;
 
 import java.lang.reflect.Array;
+import java.time.temporal.Temporal;
 import java.util.*;
 
 /**
@@ -205,6 +208,9 @@ public class CypherFormatterUtils {
 		if (value.getClass().isArray()) {
 			return arrayToString(value);
 		}
+        if (value instanceof Temporal || value instanceof DurationValue){
+           return CypherTemporalFormat.format(value);
+        }
 		return value.toString();
 	}
 
