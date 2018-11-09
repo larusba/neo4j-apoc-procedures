@@ -528,7 +528,7 @@ public class Util {
             if (source.getRef() != null) file += "#"+source.getRef();
             return new URL(source.getProtocol(),source.getHost(),source.getPort(),file).toString();
         } catch (MalformedURLException mfu) {
-            return "invalid URL";
+            return String.format("invalid URL (%s)", url);
         }
     }
 
@@ -685,5 +685,10 @@ public class Util {
         } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
             return null;
         }
+    }
+
+    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key){
+        Object value = ApocConfiguration.get(loadType).get(key + ".url");
+        return Optional.ofNullable(value).map(Object::toString);
     }
 }
