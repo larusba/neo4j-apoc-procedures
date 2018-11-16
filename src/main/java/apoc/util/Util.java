@@ -5,6 +5,7 @@ import apoc.Pools;
 import apoc.export.util.CountingInputStream;
 import apoc.path.RelationshipTypeAndDirections;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.Node;
@@ -687,8 +688,9 @@ public class Util {
         }
     }
 
-    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key){
-        Object value = ApocConfiguration.get(loadType).get(key + ".url");
+    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix){
+        key = Optional.ofNullable(key).map(s -> s + "." + suffix).orElse(StringUtils.EMPTY);
+        Object value = ApocConfiguration.get(loadType).get(key);
         return Optional.ofNullable(value).map(Object::toString);
     }
 }
