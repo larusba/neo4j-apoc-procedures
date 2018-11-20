@@ -1,15 +1,20 @@
 package apoc.meta;
 
 import apoc.util.TestUtil;
+import apoc.util.Util;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.neo4j.graphdb.*;
 import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.values.storable.*;
 
-import java.util.*;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static apoc.util.MapUtil.map;
 import static apoc.util.TestUtil.testCall;
@@ -316,4 +321,96 @@ public class MetaTest {
             assertEquals(0, rels.size());
         });
     }
+
+    @Test
+    public void testMetaDate() throws Exception {
+
+        Map<String, Object> param = map(
+                "DATE", DateValue.now(Clock.systemDefaultZone()),
+                "LOCAL_DATE", LocalDateTimeValue.now(Clock.systemDefaultZone()),
+                "TIME", TimeValue.now(Clock.systemDefaultZone()),
+                "LOCAL_TIME", LocalTimeValue.now(Clock.systemDefaultZone()),
+                "DATE_TIME", DateTimeValue.now(Clock.systemDefaultZone()),
+                "NULL", null);
+
+        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+            Map<String, Object>  r = (Map<String, Object>) row.get("value");
+
+            assertEquals("DATE?", r.get("DATE"));
+            assertEquals("LOCAL_DATE_TIME?", r.get("LOCAL_DATE"));
+            assertEquals("TIME?", r.get("TIME"));
+            assertEquals("LOCAL_TIME?", r.get("LOCAL_TIME"));
+            assertEquals("DATE_TIME?", r.get("DATE_TIME"));
+            assertEquals("NULL?", r.get("NULL"));
+        });
+    }
+
+    @Test
+    public void testMetaArray() throws Exception {
+
+        Map<String, Object> param = map(
+                "ARRAY", new String[]{"a","b","c"},
+                "ARRAY_FLOAT", new Float[]{1.2f, 2.2f},
+                "ARRAY_DOUBLE", new Double[]{1.2, 2.2},
+                "ARRAY_INT", new Integer[]{1, 2},
+                "NULL", null);
+
+        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+            Map<String, Object>  r = (Map<String, Object>) row.get("value");
+
+            assertEquals("STRING?[]", r.get("ARRAY"));
+            assertEquals("FLOAT?[]", r.get("ARRAY_FLOAT"));
+            assertEquals("FLOAT?[]", r.get("ARRAY_DOUBLE"));
+            assertEquals("INTEGER?[]", r.get("ARRAY_INT"));
+            assertEquals("NULL?", r.get("NULL"));
+        });
+    }
+
+    @Test
+    public void testMetaNumber() throws Exception {
+
+        Map<String, Object> param = map(
+                "INTEGER", 1L,
+                "FLOAT", 1.0f,
+                "DOUBLE", 1.0D,
+                "NULL", null);
+
+        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+            Map<String, Object>  r = (Map<String, Object>) row.get("value");
+
+            assertEquals("INTEGER?", r.get("INTEGER"));
+            assertEquals("FLOAT?", r.get("FLOAT"));
+            assertEquals("FLOAT?", r.get("DOUBLE"));
+            assertEquals("NULL?", r.get("NULL"));
+        });
+    }
+
+    @Test
+    public void testMeta() throws Exception {
+
+        Map<String, Object> param = map(
+                "LIST", asList(1.2, 2.1),
+                "STRING", "a",
+                "BOOLEAN", true,
+                "MAP", Util.map("a", "b"),
+                "NULL", null);
+
+        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+            Map<String, Object>  r = (Map<String, Object>) row.get("value");
+
+            assertEquals("LIST? OF ANY?", r.get("LIST"));
+            assertEquals("STRING?", r.get("STRING"));
+            assertEquals("BOOLEAN?", r.get("BOOLEAN"));
+            assertEquals("MAP?", r.get("MAP"));
+            assertEquals("NULL?", r.get("NULL"));
+        });
+    }
+
+    @Test
+    public void testMetaPoint() throws Exception {
+        db.execute("CREATE (:TEST {born:point({ longitude: 56.7, latitude: 12.78, height: 100 })})");
+
+        TestUtil.testCall(db, "MATCH (t:TEST) WITH t.born as born RETURN apoc.meta.v2.type(born) AS value", row -> assertEquals("POINT?", row.get("value")));
+    }
+
 }
