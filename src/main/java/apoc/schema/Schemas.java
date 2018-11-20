@@ -4,8 +4,10 @@ import apoc.result.AssertSchemaResult;
 import apoc.result.ConstraintRelationshipInfo;
 import apoc.result.IndexConstraintNodeInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.neo4j.cypher.internal.v3_4.functions.Labels;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.ConstraintType;
@@ -44,9 +46,9 @@ public class Schemas {
     }
 
     @Procedure(value = "apoc.schema.nodes", mode = Mode.SCHEMA)
-    @Description("CALL apoc.schema.nodes() yield name, label, properties, status, type")
-    public Stream<IndexConstraintNodeInfo> nodes() throws IndexNotFoundKernelException {
-        return indexesAndConstraintsForNode();
+    @Description("CALL apoc.schema.nodes(label) yield name, label, properties, status, type")
+    public Stream<IndexConstraintNodeInfo> nodes(@Name(value = "label", defaultValue = "") String labelName) throws IndexNotFoundKernelException {
+        return indexesAndConstraintsForNode(labelName);
     }
 
     @Procedure(value = "apoc.schema.relationships", mode = Mode.SCHEMA)
@@ -268,16 +270,27 @@ public class Schemas {
      * Collects indexes and constraints for nodes
      *
      * @return
+     * @param labelName
      */
-    private Stream<IndexConstraintNodeInfo> indexesAndConstraintsForNode() throws IndexNotFoundKernelException {
+    private Stream<IndexConstraintNodeInfo> indexesAndConstraintsForNode(String labelName) throws IndexNotFoundKernelException {
         try ( Statement ignore = tx.acquireStatement() ) {
             TokenRead tokenRead = tx.tokenRead();
             TokenNameLookup tokens = new SilentTokenNameLookup(tokenRead);
 
             SchemaRead schemaRead = tx.schemaRead();
-            Iterable<IndexReference> indexesIterator = () -> schemaRead.indexesGetAll();
+            Iterable<IndexReference> indexesIterator;
+            Iterable<ConstraintDescriptor> constraintsIterator;
 
-            Iterable<ConstraintDescriptor> constraintsIterator = () -> schemaRead.constraintsGetAll();
+            if (labelName == null || labelName.isEmpty()) {
+                indexesIterator = () -> schemaRead.indexesGetAll();
+                constraintsIterator = () -> schemaRead.constraintsGetAll();
+            } else {
+                int labelId = tokenRead.nodeLabel(labelName);
+                if (labelId == -1) throw new RuntimeException(String.format("Label %s not found!", labelName));
+                indexesIterator = () -> schemaRead.indexesGetForLabel(labelId);
+                constraintsIterator = () -> schemaRead.constraintsGetForLabel(labelId);
+            }
+
             Stream<IndexConstraintNodeInfo> constraintNodeInfoStream = StreamSupport.stream(constraintsIterator.spliterator(), false)
                     .filter(constraintDescriptor -> constraintDescriptor.type().equals(ConstraintDescriptor.Type.EXISTS))
                     .map(constraintDescriptor -> this.nodeInfoFromConstraintDescriptor(constraintDescriptor, tokens))
