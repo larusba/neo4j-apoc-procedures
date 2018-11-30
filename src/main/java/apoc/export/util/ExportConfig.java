@@ -4,6 +4,7 @@ import apoc.export.cypher.formatter.CypherFormat;
 import apoc.util.Util;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static apoc.util.Util.toBoolean;
@@ -24,6 +25,7 @@ public class ExportConfig {
     private String delim = DEFAULT_DELIM;
     private String quotes = "always";
     private boolean useTypes = false;
+    private String[] caption;
     private boolean writeNodeProperties = false;
     private boolean nodesOfRelationships;
     private ExportFormat format;
@@ -56,9 +58,9 @@ public class ExportConfig {
 
     public ExportFormat getFormat() { return format; }
 
-    public CypherFormat getCypherFormat() {
-        return cypherFormat;
-    }
+    public String[] getCaption() { return caption; }
+
+    public CypherFormat getCypherFormat() { return cypherFormat; }
 
     public ExportConfig(Map<String,Object> config) {
         config = config != null ? config : Collections.emptyMap();
@@ -66,6 +68,7 @@ public class ExportConfig {
         this.batchSize = ((Number)config.getOrDefault("batchSize", DEFAULT_BATCH_SIZE)).intValue();
         this.delim = delim(config.getOrDefault("d", String.valueOf(DEFAULT_DELIM)).toString());
         this.useTypes = toBoolean(config.get("useTypes"));
+        this.caption = convertCaption(config.getOrDefault("caption", null));
         this.nodesOfRelationships = toBoolean(config.get("nodesOfRelationships"));
         this.format = ExportFormat.fromString((String) config.getOrDefault("format", "neo4j-shell"));
         this.cypherFormat = CypherFormat.fromString((String) config.getOrDefault("cypherFormat", "create"));
@@ -122,6 +125,12 @@ public class ExportConfig {
 
     private ExportFormat format(Object format) {
         return format != null && format instanceof String ? ExportFormat.fromString((String)format) : ExportFormat.NEO4J_SHELL;
+    }
+
+    private static String[] convertCaption(Object value) {
+        if (value == null) return null;
+        List<String> strings = (List<String>) value;
+        return strings.toArray(new String[strings.size()]);
     }
 
     public boolean streamStatements() {

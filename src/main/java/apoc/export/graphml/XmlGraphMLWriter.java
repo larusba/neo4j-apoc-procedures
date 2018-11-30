@@ -1,9 +1,6 @@
 package apoc.export.graphml;
 
-import apoc.export.util.ExportConfig;
-import apoc.export.util.FormatUtils;
-import apoc.export.util.MetaInformation;
-import apoc.export.util.Reporter;
+import apoc.export.util.*;
 import org.neo4j.cypher.export.SubGraph;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PropertyContainer;
@@ -30,10 +27,10 @@ public class XmlGraphMLWriter {
         XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
         XMLStreamWriter xmlWriter = xmlOutputFactory.createXMLStreamWriter(writer);
         writeHeader(xmlWriter);
-        if (config.useTypes()) writeKeyTypes(xmlWriter, graph);
+        writeKey(xmlWriter, graph, config.useTypes());
         writeGraph(xmlWriter);
         for (Node node : graph.getNodes()) {
-            int props = writeNode(xmlWriter, node);
+            int props = writeNode(xmlWriter, node, config);
             reporter.update(1, 0, props);
         }
         for (Relationship rel : graph.getRelationships()) {
@@ -43,20 +40,26 @@ public class XmlGraphMLWriter {
         writeFooter(xmlWriter);
     }
 
-    private void writeKeyTypes(XMLStreamWriter writer, SubGraph ops) throws Exception {
+    private void writeKey(XMLStreamWriter writer, SubGraph ops, boolean useTypes) throws Exception {
         Map<String, Class> keyTypes = new HashMap<>();
         for (Node node : ops.getNodes()) {
+            if (node.getLabels().iterator().hasNext()) {
+                keyTypes.put("label", String.class);
+            }
             updateKeyTypes(keyTypes, node);
         }
-        writeKeyTypes(writer, keyTypes, "node");
+        keyTypes.put("TYPE", String.class);
+        writeKey(writer, keyTypes, "node", useTypes);
         keyTypes.clear();
         for (Relationship rel : ops.getRelationships()) {
+            keyTypes.put("label", String.class);
             updateKeyTypes(keyTypes, rel);
         }
-        writeKeyTypes(writer, keyTypes, "edge");
+        keyTypes.put("TYPE", String.class);
+        writeKey(writer, keyTypes, "edge", useTypes);
     }
 
-    private void writeKeyTypes(XMLStreamWriter writer, Map<String, Class> keyTypes, String forType) throws IOException, XMLStreamException {
+    private void writeKey(XMLStreamWriter writer, Map<String, Class> keyTypes, String forType, boolean useTypes) throws IOException, XMLStreamException {
         for (Map.Entry<String, Class> entry : keyTypes.entrySet()) {
             Class typeClass = entry.getValue();
             String type = MetaInformation.typeFor(typeClass, MetaInformation.GRAPHML_ALLOWED);
@@ -65,21 +68,23 @@ public class XmlGraphMLWriter {
             writer.writeAttribute("id", entry.getKey());
             writer.writeAttribute("for", forType);
             writer.writeAttribute("attr.name", entry.getKey());
-            if (typeClass.isArray()) {
-                writer.writeAttribute("attr.type", "string");
-                writer.writeAttribute("attr.list",type);
-            } else {
-                writer.writeAttribute("attr.type", type);
+            if (useTypes) {
+                if (typeClass.isArray()) {
+                    writer.writeAttribute("attr.type", "string");
+                    writer.writeAttribute("attr.list", type);
+                } else {
+                    writer.writeAttribute("attr.type", type);
+                }
             }
             newLine(writer);
         }
     }
 
-    private int writeNode(XMLStreamWriter writer, Node node) throws IOException, XMLStreamException {
+    private int writeNode(XMLStreamWriter writer, Node node, ExportConfig config) throws IOException, XMLStreamException {
         writer.writeStartElement("node");
         writer.writeAttribute("id", id(node));
-        writeLabels(writer, node);
-        writeLabelsAsData(writer, node);
+        writeLabels(writer, node, config);
+        writeLabelsAsData(writer, node, config);
         int props = writeProps(writer, node);
         endElement(writer);
         return props;
@@ -89,15 +94,17 @@ public class XmlGraphMLWriter {
         return "n" + node.getId();
     }
 
-    private void writeLabels(XMLStreamWriter writer, Node node) throws IOException, XMLStreamException {
-        String labelsString = getLabelsString(node);
+    private void writeLabels(XMLStreamWriter writer, Node node, ExportConfig config) throws IOException, XMLStreamException {
+        String labelsString = getLabelsString(config, node);
         if (!labelsString.isEmpty()) writer.writeAttribute("labels", labelsString);
     }
 
-    private void writeLabelsAsData(XMLStreamWriter writer, Node node) throws IOException, XMLStreamException {
-        String labelsString = getLabelsString(node);
+    private void writeLabelsAsData(XMLStreamWriter writer, Node node, ExportConfig config) throws IOException, XMLStreamException {
+        String labelsString = getLabelsString(config, node);
         if (labelsString.isEmpty()) return;
-        writeData(writer, "labels", labelsString);
+        String delimiter = ":";
+        writeData(writer, "TYPE", delimiter + FormatUtils.joinLabels(node, delimiter));
+        writeData(writer, ExportFormat.GEPHI == config.getFormat() ? "label" : "labels", labelsString);
     }
 
     private int writeRelationship(XMLStreamWriter writer, Relationship rel) throws IOException, XMLStreamException {
@@ -107,6 +114,7 @@ public class XmlGraphMLWriter {
         writer.writeAttribute("target", id(rel.getEndNode()));
         writer.writeAttribute("label", rel.getType().name());
         writeData(writer, "label", rel.getType().name());
+        writeData(writer, "TYPE", rel.getType().name());
         int props = writeProps(writer, rel);
         endElement(writer);
         return props;
