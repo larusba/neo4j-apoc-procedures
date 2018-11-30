@@ -30,21 +30,41 @@ import static org.junit.Assert.assertTrue;
  */
 public class ExportGraphMLTest {
 
-    public static final String KEY_TYPES = "<key id=\"values\" for=\"node\" attr.name=\"values\" attr.type=\"string\" attr.list=\"long\"/>%n" +
-            "<key id=\"name\" for=\"node\" attr.name=\"name\" attr.type=\"string\"/>%n" +
-            "<key id=\"age\" for=\"node\" attr.name=\"age\" attr.type=\"long\"/>%n";
-    public static final String GRAPH = "<graph id=\"G\" edgedefault=\"directed\">%n";
     public static final String HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>%n" +
             "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">%n";
-    public static final String DATA = "<node id=\"n0\" labels=\":Foo:Foo0:Foo2\"><data key=\"labels\">:Foo:Foo0:Foo2</data><data key=\"name\">foo</data></node>%n" +
-            "<node id=\"n1\" labels=\":Bar\"><data key=\"labels\">:Bar</data><data key=\"name\">bar</data><data key=\"age\">42</data></node>%n" +
-            "<node id=\"n2\" labels=\":Bar\"><data key=\"labels\">:Bar</data><data key=\"age\">12</data><data key=\"values\">[1,2,3]</data></node>%n" +
+    public static final String KEY_TYPES_FALSE = "<key id=\"born\" for=\"node\" attr.name=\"born\"/>%n" +
+            "<key id=\"values\" for=\"node\" attr.name=\"values\"/>%n" +
+            "<key id=\"name\" for=\"node\" attr.name=\"name\"/>%n" +
+            "<key id=\"label\" for=\"node\" attr.name=\"label\"/>%n"+
+            "<key id=\"place\" for=\"node\" attr.name=\"place\"/>%n" +
+            "<key id=\"age\" for=\"node\" attr.name=\"age\"/>%n" +
+            "<key id=\"label\" for=\"edge\" attr.name=\"label\"/>%n";
+    public static final String KEY_TYPES = "<key id=\"born\" for=\"node\" attr.name=\"born\" attr.type=\"string\"/>%n" +
+            "<key id=\"values\" for=\"node\" attr.name=\"values\" attr.type=\"string\" attr.list=\"long\"/>%n" +
+            "<key id=\"name\" for=\"node\" attr.name=\"name\" attr.type=\"string\"/>%n" +
+            "<key id=\"label\" for=\"node\" attr.name=\"label\" attr.type=\"string\"/>%n"+
+            "<key id=\"place\" for=\"node\" attr.name=\"place\" attr.type=\"string\"/>%n" +
+            "<key id=\"age\" for=\"node\" attr.name=\"age\" attr.type=\"long\"/>%n" +
+            "<key id=\"label\" for=\"edge\" attr.name=\"label\" attr.type=\"string\"/>%n";
+    public static final String KEY_TYPES_PATH = "<key id=\"born\" for=\"node\" attr.name=\"born\" attr.type=\"string\"/>%n" +
+            "<key id=\"name\" for=\"node\" attr.name=\"name\" attr.type=\"string\"/>%n" +
+            "<key id=\"label\" for=\"node\" attr.name=\"label\" attr.type=\"string\"/>%n"+
+            "<key id=\"place\" for=\"node\" attr.name=\"place\" attr.type=\"string\"/>%n" +
+            "<key id=\"age\" for=\"node\" attr.name=\"age\" attr.type=\"long\"/>%n" +
+            "<key id=\"label\" for=\"edge\" attr.name=\"label\" attr.type=\"string\"/>%n";
+    public static final String GRAPH = "<graph id=\"G\" edgedefault=\"directed\">%n";
+    public static final String DATA = "<node id=\"n0\" labels=\":Foo:Foo0:Foo2\"><data key=\"label\">:Foo:Foo0:Foo2</data><data key=\"place\">{\"crs\":\"wgs-84-3d\",\"latitude\":56.7,\"longitude\":12.78,\"height\":100.0}</data><data key=\"name\">foo</data><data key=\"born\">2018-10-10</data></node>%n" +
+            "<node id=\"n1\" labels=\":Bar\"><data key=\"label\">:Bar</data><data key=\"age\">42</data><data key=\"name\">bar</data><data key=\"place\">{\"crs\":\"wgs-84\",\"latitude\":56.7,\"longitude\":12.78,\"height\":null}</data></node>%n" +
+            "<node id=\"n2\" labels=\":Bar\"><data key=\"label\">:Bar</data><data key=\"age\">12</data><data key=\"values\">[1,2,3]</data></node>%n" +
+            "<edge id=\"e0\" source=\"n0\" target=\"n1\" label=\"KNOWS\"><data key=\"label\">KNOWS</data></edge>%n";
+    public static final String DATA_PATH = "<node id=\"n0\" labels=\":Foo:Foo0:Foo2\"><data key=\"label\">:Foo:Foo0:Foo2</data><data key=\"place\">{\"crs\":\"wgs-84-3d\",\"latitude\":56.7,\"longitude\":12.78,\"height\":100.0}</data><data key=\"name\">foo</data><data key=\"born\">2018-10-10</data></node>%n" +
+            "<node id=\"n1\" labels=\":Bar\"><data key=\"label\">:Bar</data><data key=\"age\">42</data><data key=\"name\">bar</data><data key=\"place\">{\"crs\":\"wgs-84\",\"latitude\":56.7,\"longitude\":12.78,\"height\":null}</data></node>%n" +
             "<edge id=\"e0\" source=\"n0\" target=\"n1\" label=\"KNOWS\"><data key=\"label\">KNOWS</data></edge>%n";
     public static final String FOOTER = "</graph>%n" +
             "</graphml>";
-    private static final String EXPECTED = String.format(HEADER + GRAPH + DATA + FOOTER);
-    private static final String EXPECTED_TYPES = String.format(HEADER + KEY_TYPES +GRAPH +DATA + FOOTER);
-
+    private static final String EXPECTED = String.format(HEADER + KEY_TYPES_FALSE + GRAPH + DATA + FOOTER);
+    private static final String EXPECTED_TYPES = String.format(HEADER + KEY_TYPES + GRAPH + DATA + FOOTER);
+    private static final String EXPECTED_TYPES_PATH = String.format(HEADER + KEY_TYPES_PATH + GRAPH + DATA_PATH + FOOTER);
 
     private static GraphDatabaseService db;
     private static File directory = new File("target/import");
@@ -72,7 +92,7 @@ public class ExportGraphMLTest {
         }
         db = builder.newGraphDatabase();
         TestUtil.registerProcedure(db, ExportGraphML.class, Graphs.class);
-        db.execute("CREATE (f:Foo:Foo2:Foo0 {name:'foo'})-[:KNOWS]->(b:Bar {name:'bar',age:42}),(c:Bar {age:12,values:[1,2,3]})").close();
+        db.execute("CREATE (f:Foo:Foo2:Foo0 {name:'foo', born:Date('2018-10-10'), place:point({ longitude: 56.7, latitude: 12.78, height: 100 })})-[:KNOWS]->(b:Bar {name:'bar',age:42, place:point({ longitude: 56.7, latitude: 12.78})}),(c:Bar {age:12,values:[1,2,3]})").close();
     }
 
     @After
@@ -88,7 +108,18 @@ public class ExportGraphMLTest {
         FileWriter fw = new FileWriter(output);
         fw.write(EXPECTED_TYPES); fw.close();
         TestUtil.testCall(db, "CALL apoc.import.graphml({file},{readLabels:true})", map("file", output.getAbsolutePath()),
-                (r) -> assertResults(output, r, "database"));
+                (r) -> {
+                    assertEquals(3L, r.get("nodes"));
+                    assertEquals(1L, r.get("relationships"));
+                    assertEquals(11L, r.get("properties"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    if (r.get("source").toString().contains(":"))
+                        assertEquals("statement" + ": nodes(2), rels(1)", r.get("source"));
+                    else
+                        assertEquals("file", r.get("source"));
+                    assertEquals("graphml", r.get("format"));
+                    assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
+                });
 
         TestUtil.testCall(db, "MATCH  (c:Bar {age: 12, values: [1,2,3]}) RETURN COUNT(c) AS c", null, (r) -> assertEquals(1L, r.get("c")));
     }
@@ -139,7 +170,7 @@ public class ExportGraphMLTest {
     public void testExportGraphGraphMLTypesWithNoExportConfig() throws Exception {
         File output = new File(directory, "all.graphml");
         try {
-            TestUtil.testCall(db, "CALL apoc.export.graphml.all({file},null)", map("file", output.getAbsolutePath()),(r) -> assertResults(output, r, "database"));
+            TestUtil.testCall(db, "CALL apoc.export.graphml.all({file},null)", map("file", output.getAbsolutePath()), (r) -> assertResults(output, r, "database"));
         } catch (QueryExecutionException e) {
             Throwable except = ExceptionUtils.getRootCause(e);
             TestCase.assertTrue(except instanceof RuntimeException);
@@ -148,10 +179,29 @@ public class ExportGraphMLTest {
         }
     }
 
+    @Test
+    public void testExportGraphGraphMLQuery() throws Exception {
+        File output = new File(directory, "query.graphml");
+        TestUtil.testCall(db, "call apoc.export.graphml.query('MATCH p=()-[r]->() RETURN p limit 1000',{file},{useTypes:true}) ", map("file", output.getAbsolutePath()),
+                (r) -> {
+                    assertEquals(2L, r.get("nodes"));
+                    assertEquals(1L, r.get("relationships"));
+                    assertEquals(6L, r.get("properties"));
+                    assertEquals(output.getAbsolutePath(), r.get("file"));
+                    if (r.get("source").toString().contains(":"))
+                        assertEquals("statement" + ": nodes(2), rels(1)", r.get("source"));
+                    else
+                        assertEquals("file", r.get("source"));
+                    assertEquals("graphml", r.get("format"));
+                    assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
+                });
+        assertEquals(EXPECTED_TYPES_PATH, new Scanner(output).useDelimiter("\\Z").next());
+    }
+
     private void assertResults(File output, Map<String, Object> r, final String source) {
         assertEquals(3L, r.get("nodes"));
         assertEquals(1L, r.get("relationships"));
-        assertEquals(5L, r.get("properties"));
+        assertEquals(8L, r.get("properties"));
         assertEquals(output.getAbsolutePath(), r.get("file"));
         if (r.get("source").toString().contains(":"))
             assertEquals(source + ": nodes(3), rels(1)", r.get("source"));
