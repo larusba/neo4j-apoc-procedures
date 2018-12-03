@@ -23,6 +23,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.neo4j.driver.v1.Values.isoDuration;
 import static org.neo4j.graphdb.traversal.Evaluators.toDepth;
 
 public class MetaTest {
@@ -83,6 +84,19 @@ public class MetaTest {
         testTypeName(false, "BOOLEAN");
         testTypeName(true, "BOOLEAN");
         testTypeName(null, "NULL");
+    }
+
+    @Test
+    public void testMetaTypeArray() throws Exception {
+        testTypeName(asList(1,2), "LIST");
+        testTypeName(asList(LocalDate.of(2018, 1, 1),2), "LIST");
+        testTypeName(new Integer[] {1, 2}, "int[]");
+        testTypeName(new Float[] {1f, 2f}, "float[]");
+        testTypeName(new Double[] {1d, 2d}, "double[]");
+        testTypeName(new String[] {"a", "b"}, "String[]");
+        testTypeName(new Long[] {1l, 2l}, "long[]");
+        testTypeName(new LocalDate[] {LocalDate.of(2018, 1, 1), LocalDate.of(2018, 1, 1)}, "LIST");
+        testTypeName(new Object[] {1d, ""}, "LIST");
     }
 
     @Test
@@ -334,7 +348,7 @@ public class MetaTest {
                 "DATE_TIME", DateTimeValue.now(Clock.systemDefaultZone()),
                 "NULL", null);
 
-        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+        TestUtil.testCall(db, "RETURN apoc.meta.cypher.types({param}) AS value", singletonMap("param",param), row -> {
             Map<String, Object>  r = (Map<String, Object>) row.get("value");
 
             assertEquals("DATE?", r.get("DATE"));
@@ -354,15 +368,23 @@ public class MetaTest {
                 "ARRAY_FLOAT", new Float[]{1.2f, 2.2f},
                 "ARRAY_DOUBLE", new Double[]{1.2, 2.2},
                 "ARRAY_INT", new Integer[]{1, 2},
+                "ARRAY_OBJECT", new Object[]{1, "a"},
+                "ARRAY_POINT", new Object[]{Values.pointValue(CoordinateReferenceSystem.WGS84, 56.d, 12.78), Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.d, 12.78, 100)},
+                "ARRAY_DURATION", new Object[]{isoDuration(5, 1, 43200, 0).asIsoDuration(), isoDuration(2, 1, 125454, 0).asIsoDuration()},
+                "ARRAY_ARRAY", new Object[]{1, "a", new Object[]{"a", 1}, isoDuration(5, 1, 43200, 0).asIsoDuration()},
                 "NULL", null);
 
-        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+        TestUtil.testCall(db, "RETURN apoc.meta.cypher.types({param}) AS value", singletonMap("param",param), row -> {
             Map<String, Object>  r = (Map<String, Object>) row.get("value");
 
-            assertEquals("STRING?[]", r.get("ARRAY"));
-            assertEquals("FLOAT?[]", r.get("ARRAY_FLOAT"));
-            assertEquals("FLOAT?[]", r.get("ARRAY_DOUBLE"));
-            assertEquals("INTEGER?[]", r.get("ARRAY_INT"));
+            assertEquals("LIST? OF STRING?", r.get("ARRAY"));
+            assertEquals("LIST? OF FLOAT?", r.get("ARRAY_FLOAT"));
+            assertEquals("LIST? OF FLOAT?", r.get("ARRAY_DOUBLE"));
+            assertEquals("LIST? OF INTEGER?", r.get("ARRAY_INT"));
+            assertEquals("LIST? OF ANY?", r.get("ARRAY_OBJECT"));
+            assertEquals("LIST? OF POINT?", r.get("ARRAY_POINT"));
+            assertEquals("LIST? OF DURATION?", r.get("ARRAY_DURATION"));
+            assertEquals("LIST? OF ANY?", r.get("ARRAY_ARRAY"));
             assertEquals("NULL?", r.get("NULL"));
         });
     }
@@ -376,7 +398,7 @@ public class MetaTest {
                 "DOUBLE", 1.0D,
                 "NULL", null);
 
-        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+        TestUtil.testCall(db, "RETURN apoc.meta.cypher.types({param}) AS value", singletonMap("param",param), row -> {
             Map<String, Object>  r = (Map<String, Object>) row.get("value");
 
             assertEquals("INTEGER?", r.get("INTEGER"));
@@ -394,16 +416,27 @@ public class MetaTest {
                 "STRING", "a",
                 "BOOLEAN", true,
                 "CHAR", 'a',
+                "DURATION", 'a',
+                "POINT_2D",Values.pointValue(CoordinateReferenceSystem.WGS84, 56.d, 12.78),
+                "POINT_3D", Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.7, 12.78, 100.0),
+                "POINT_XYZ_2D", Values.pointValue(CoordinateReferenceSystem.Cartesian, 2.3, 4.5),
+                "POINT_XYZ_3D", Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 2.3, 4.5, 1.2),
+                "DURATION", isoDuration(5, 1, 43200, 0).asIsoDuration(),
                 "MAP", Util.map("a", "b"),
                 "NULL", null);
 
-        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+        TestUtil.testCall(db, "RETURN apoc.meta.cypher.types({param}) AS value", singletonMap("param",param), row -> {
             Map<String, Object>  r = (Map<String, Object>) row.get("value");
 
             assertEquals("LIST? OF FLOAT?", r.get("LIST"));
             assertEquals("STRING?", r.get("STRING"));
             assertEquals("BOOLEAN?", r.get("BOOLEAN"));
             assertEquals("Character", r.get("CHAR"));
+            assertEquals("POINT?", r.get("POINT_2D"));
+            assertEquals("POINT?", r.get("POINT_3D"));
+            assertEquals("POINT?", r.get("POINT_XYZ_2D"));
+            assertEquals("POINT?", r.get("POINT_XYZ_3D"));
+            assertEquals("DURATION?", r.get("DURATION"));
             assertEquals("MAP?", r.get("MAP"));
             assertEquals("NULL?", r.get("NULL"));
         });
@@ -417,13 +450,15 @@ public class MetaTest {
                 "LIST STRING", asList("a", "b"),
                 "LIST CHAR", asList('a', 'a'),
                 "LIST DATE", asList(LocalDate.of(2018,1,1), LocalDate.of(2018,2,2)),
-                "LIST ANY", asList("test",1,"asd"),
+                "LIST ANY", asList("test",1,"asd",isoDuration(5, 1, 43200, 0).asIsoDuration()),
                 "LIST NULL", asList("test",null),
+                "LIST POINT", asList(Values.pointValue(CoordinateReferenceSystem.WGS84, 56.d, 12.78), Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 2.3, 4.5, 1.2)),
+                "LIST DURATION", asList(isoDuration(5, 1, 43200, 0).asIsoDuration(), isoDuration(2, 1, 125454, 0).asIsoDuration()),
                 "LIST OBJECT", new Object[]{LocalDate.of(2018,1,1), "test"},
                 "LIST OF LIST", asList(asList("a", "b", "c"),asList("aa", "bb", "cc"),asList("aaa", "bbb", "ccc")),
                 "LIST DOUBLE", asList(1.2D, 2.1D));
 
-        TestUtil.testCall(db, "RETURN apoc.meta.v2.types({param}) AS value", singletonMap("param",param), row -> {
+        TestUtil.testCall(db, "RETURN apoc.meta.cypher.types({param}) AS value", singletonMap("param",param), row -> {
             Map<String, Object>  r = (Map<String, Object>) row.get("value");
 
             assertEquals("LIST? OF FLOAT?", r.get("LIST FLOAT"));
@@ -431,6 +466,8 @@ public class MetaTest {
             assertEquals("LIST? OF ANY?", r.get("LIST CHAR"));
             assertEquals("LIST? OF DATE?", r.get("LIST DATE"));
             assertEquals("LIST? OF FLOAT?", r.get("LIST DOUBLE"));
+            assertEquals("LIST? OF POINT?", r.get("LIST POINT"));
+            assertEquals("LIST? OF DURATION?", r.get("LIST DURATION"));
             assertEquals("LIST? OF ANY?", r.get("LIST ANY"));
             assertEquals("LIST? OF ANY?", r.get("LIST OBJECT"));
             assertEquals("LIST? OF LIST?", r.get("LIST OF LIST"));
@@ -442,7 +479,13 @@ public class MetaTest {
     public void testMetaPoint() throws Exception {
         db.execute("CREATE (:TEST {born:point({ longitude: 56.7, latitude: 12.78, height: 100 })})");
 
-        TestUtil.testCall(db, "MATCH (t:TEST) WITH t.born as born RETURN apoc.meta.v2.type(born) AS value", row -> assertEquals("POINT?", row.get("value")));
+        TestUtil.testCall(db, "MATCH (t:TEST) WITH t.born as born RETURN apoc.meta.cypher.type(born) AS value", row -> assertEquals("POINT?", row.get("value")));
     }
 
+    @Test
+    public void testMetaDuration() throws Exception {
+        db.execute("CREATE (:TEST {duration:duration('P5M1DT12H')})");
+
+        TestUtil.testCall(db, "MATCH (t:TEST) WITH t.duration as duration RETURN apoc.meta.cypher.type(duration) AS value", row -> assertEquals("DURATION?", row.get("value")));
+    }
 }
