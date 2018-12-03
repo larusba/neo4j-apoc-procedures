@@ -5,7 +5,9 @@ import apoc.util.TestUtil;
 import apoc.util.Util;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -35,15 +37,28 @@ public class ExportCypherTest {
         directory.mkdirs();
     }
 
+    @Rule
+    public TestName testName = new TestName();
+
+    private static final String OPTIMIZED = "Optimized";
+
     @Before
     public void setUp() throws Exception {
         db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig(GraphDatabaseSettings.load_csv_file_url_root, directory.getAbsolutePath())
                 .setConfig("apoc.export.file.enabled", "true").newGraphDatabase();
         TestUtil.registerProcedure(db, ExportCypher.class, Graphs.class);
-        db.execute("CREATE INDEX ON :Foo(name)").close();
-        db.execute("CREATE INDEX ON :Bar(first_name, last_name)").close();
-        db.execute("CREATE CONSTRAINT ON (b:Bar) ASSERT b.name IS UNIQUE").close();
-        db.execute("CREATE (f:Foo {name:'foo', born:date('2018-10-31')})-[:KNOWS {since:2016}]->(b:Bar {name:'bar',age:42}),(c:Bar {age:12})").close();
+        if (testName.getMethodName().endsWith(OPTIMIZED)) {
+            db.execute("CREATE INDEX ON :Foo(name)").close();
+            db.execute("CREATE INDEX ON :Bar(first_name, last_name)").close();
+            db.execute("CREATE CONSTRAINT ON (b:Bar) ASSERT b.name IS UNIQUE").close();
+            db.execute("CREATE (f:Foo {name:'foo', born:date('2018-10-31')})-[:KNOWS {since:2016}]->(b:Bar {name:'bar',age:42}),(c:Bar:Person {age:12}),(d:Bar {age:12})," +
+                    " (t:Foo {name:'foo2', born:date('2017-09-29')})-[:KNOWS {since:2015}]->(e:Bar {name:'bar2',age:44}),({age:99})").close();
+        } else {
+            db.execute("CREATE INDEX ON :Foo(name)").close();
+            db.execute("CREATE INDEX ON :Bar(first_name, last_name)").close();
+            db.execute("CREATE CONSTRAINT ON (b:Bar) ASSERT b.name IS UNIQUE").close();
+            db.execute("CREATE (f:Foo {name:'foo', born:date('2018-10-31')})-[:KNOWS {since:2016}]->(b:Bar {name:'bar',age:42}),(c:Bar {age:12})").close();
+        }
     }
 
     @After
@@ -341,6 +356,37 @@ public class ExportCypherTest {
         assertEquals(EXPECTED_CYPHER_LABELS_ASCENDEND, readFile(output));
     }
 
+    @Test
+    public void testExportAllCypherDefaultOptimized() throws Exception {
+        File output = new File(directory, "allDefaultOptimized.cypher");
+        TestUtil.testCall(db, "CALL apoc.export.cypher.all({file},{useOptimizations:true})", map("file", output.getAbsolutePath()), (r) -> assertResultsOptimized(output, r, "database"));
+        assertEquals(EXPECTED_NEO4J_OPTIMIZED, readFile(output));
+    }
+
+    @Test
+    public void testExportAllCypherCypherShellOptimized() throws Exception {
+        File output = new File(directory, "allCypherShellOptimized.cypher");
+        TestUtil.testCall(db, "CALL apoc.export.cypher.all({file},{format:'cypher-shell', useOptimizations:true})", map("file", output.getAbsolutePath()), (r) -> assertResultsOptimized(output, r, "database"));
+        assertEquals(EXPECTED_CYPHER_SHELL_OPTIMIZED, readFile(output));
+    }
+
+    @Test
+    public void testExportAllCypherPlainOptimized() throws Exception {
+        File output = new File(directory, "allPlainOptimized.cypher");
+        TestUtil.testCall(db, "CALL apoc.export.cypher.all({file},{format:'plain', useOptimizations:true})", map("file", output.getAbsolutePath()), (r) -> assertResultsOptimized(output, r, "database"));
+        assertEquals(EXPECTED_PLAIN_OPTIMIZED, readFile(output));
+    }
+
+    private void assertResultsOptimized(File output, Map<String, Object> r, final String source) {
+        assertEquals(7L, r.get("nodes"));
+        assertEquals(2L, r.get("relationships"));
+        assertEquals(13L, r.get("properties"));
+        assertEquals(output == null ? null : output.getAbsolutePath(), r.get("file"));
+        assertEquals(source + ": nodes(7), rels(2)", r.get("source"));
+        assertEquals("cypher", r.get("format"));
+        assertTrue("Should get time greater than 0",((long) r.get("time")) >= 0);
+    }
+
     static class ExportCypherResults {
 
         static final String EXPECTED_NODES = String.format("BEGIN%n" +
@@ -500,6 +546,61 @@ public class ExportCypherTest {
                 "BEGIN%n" +
                 "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
                 "COMMIT%n");
+
+        static final String EXPECTED_NODES_OPTIMIZED = String.format("BEGIN%n" +
+                "UNWIND [{`UNIQUE IMPORT ID`: 0, properties: {`born`:date('2018-10-31'), `name`:\"foo\"}}, {`UNIQUE IMPORT ID`: 4, properties: {`born`:date('2017-09-29'), `name`:\"foo2\"}}] as row %n" +
+                "MERGE (n:`Foo`:`UNIQUE IMPORT LABEL`{`UNIQUE IMPORT ID`: row.`UNIQUE IMPORT ID`}) SET n += row.properties;%n" +
+                "UNWIND [{`name`: \"bar\", properties: {`age`:42, `name`:\"bar\"}}, {`name`: \"bar2\", properties: {`age`:44, `name`:\"bar2\"}}] as row %n" +
+                "MERGE (n:`Bar`{`name`: row.`name`}) SET n += row.properties;%n" +
+                "UNWIND [{`UNIQUE IMPORT ID`: 2, properties: {`age`:12}}] as row %n" +
+                "MERGE (n:`Bar`:`Person`:`UNIQUE IMPORT LABEL`{`UNIQUE IMPORT ID`: row.`UNIQUE IMPORT ID`}) SET n += row.properties;%n" +
+                "UNWIND [{`UNIQUE IMPORT ID`: 6, properties: {`age`:99}}] as row %n" +
+                "MERGE (n:`UNIQUE IMPORT LABEL`{`UNIQUE IMPORT ID`: row.`UNIQUE IMPORT ID`}) SET n += row.properties;%n" +
+                "UNWIND [{`UNIQUE IMPORT ID`: 3, properties: {`age`:12}}] as row %n" +
+                "MERGE (n:`Bar`:`UNIQUE IMPORT LABEL`{`UNIQUE IMPORT ID`: row.`UNIQUE IMPORT ID`}) SET n += row.properties;%n" +
+                "%n" +
+                "COMMIT%n");
+
+        static final String EXPECTED_SCHEMA_OPTIMIZED = String.format("BEGIN%n" +
+                "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
+                "CREATE INDEX ON :`Foo`(`name`);%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "COMMIT%n" +
+                "SCHEMA AWAIT%n");
+
+        static final String EXPECTED_RELATIONSHIPS_OPTIMIZED = String.format("BEGIN%n" +
+                "UNWIND [{start: {`UNIQUE IMPORT ID`: 0}, end: {`name`: \"bar\"}, properties: {`since`:2016}}, {start: {`UNIQUE IMPORT ID`: 4}, end: {`name`: \"bar2\"}, properties: {`since`:2015}}] as row %n" +
+                "MATCH (start:`Foo`:`UNIQUE IMPORT LABEL`{`UNIQUE IMPORT ID`: row.start.`UNIQUE IMPORT ID`}), (end:`Bar`{`name`: row.end.`name`})%n" +
+                "MERGE (start)-[r:`KNOWS`]->(end) SET r += row.properties;%n" +
+                "%n" +
+                "COMMIT%n");
+
+        static final String EXPECTED_INDEXES_AWAIT_OPTIMIZED = String.format("CALL db.awaitIndex(':`Foo`(`name`)');%n" +
+                "CALL db.awaitIndex(':`Bar`(`first_name`,`last_name`)');%n" +
+                "CALL db.awaitIndex(':`Bar`(`name`)');%n");
+
+        static final String DROP_UNIQUE_OPTIMIZED = String.format("BEGIN%n" +
+                "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
+                "COMMIT%n" +
+                "BEGIN%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "COMMIT%n");
+
+        static final String EXPECTED_NEO4J_OPTIMIZED = EXPECTED_NODES_OPTIMIZED + EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+
+        static final String EXPECTED_NEO4J_SHELL_OPTIMIZED = EXPECTED_NODES_OPTIMIZED + EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+
+        static final String EXPECTED_CYPHER_SHELL_OPTIMIZED = EXPECTED_NEO4J_SHELL_OPTIMIZED
+                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+
+        static final String EXPECTED_PLAIN_OPTIMIZED = EXPECTED_NEO4J_SHELL_OPTIMIZED
+                .replace(NEO4J_SHELL.begin(), PLAIN_FORMAT.begin())
+                .replace(NEO4J_SHELL.commit(), PLAIN_FORMAT.commit())
+                .replace(NEO4J_SHELL.schemaAwait(), PLAIN_FORMAT.schemaAwait());
 
         static final String EXPECTED_NEO4J_SHELL = EXPECTED_NODES + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS + EXPECTED_CLEAN_UP;
 
