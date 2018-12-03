@@ -51,7 +51,7 @@ public class CypherFormatterUtils {
         return result.toString();
     }
 
-    private static Map<String, Object> getNodeIdProperties(Node node, Map<String, String> uniqueConstraints) {
+    public static Map<String, Object> getNodeIdProperties(Node node, Map<String, String> uniqueConstraints) {
         Map<String, Object> nodeIdProperties = new LinkedHashMap<>();
         boolean uniqueLabelFound = false;
         List<String> list = getLabelsSorted(node);
@@ -165,7 +165,7 @@ public class CypherFormatterUtils {
         return result.length() > 0 ? result.substring(2) : "";
     }
 
-    private static StringBuilder formatProperties(String id, Map<String, Object> properties, boolean jsonStyle) {
+    public static StringBuilder formatProperties(String id, Map<String, Object> properties, boolean jsonStyle) {
         StringBuilder result = new StringBuilder(100);
         List<String> keys = Iterables.asList(properties.keySet());
         Collections.sort(keys);
