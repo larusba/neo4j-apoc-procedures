@@ -82,7 +82,7 @@ public class FormatUtils {
         return value.toString();
     }
 
-    public static String formatPoint (Point value) {
+    public static String formatPoint(Point value) {
         try {
             return JsonUtil.OBJECT_MAPPER.writeValueAsString(value);
         } catch (JsonProcessingException e) {
