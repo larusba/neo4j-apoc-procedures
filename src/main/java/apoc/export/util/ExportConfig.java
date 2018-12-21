@@ -1,13 +1,13 @@
 package apoc.export.util;
 
 import apoc.export.cypher.formatter.CypherFormat;
+import apoc.gephi.Gephi;
 import apoc.util.Util;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static apoc.util.Util.toBoolean;
+import static java.util.Arrays.asList;
 
 /**
  * @author mh
@@ -25,7 +25,7 @@ public class ExportConfig {
     private String delim = DEFAULT_DELIM;
     private String quotes = "always";
     private boolean useTypes = false;
-    private String[] caption;
+    private Set<String> caption;
     private boolean writeNodeProperties = false;
     private boolean nodesOfRelationships;
     private ExportFormat format;
@@ -58,7 +58,7 @@ public class ExportConfig {
 
     public ExportFormat getFormat() { return format; }
 
-    public String[] getCaption() { return caption; }
+    public Set<String> getCaption() { return caption; }
 
     public CypherFormat getCypherFormat() { return cypherFormat; }
 
@@ -68,7 +68,7 @@ public class ExportConfig {
         this.batchSize = ((Number)config.getOrDefault("batchSize", DEFAULT_BATCH_SIZE)).intValue();
         this.delim = delim(config.getOrDefault("d", String.valueOf(DEFAULT_DELIM)).toString());
         this.useTypes = toBoolean(config.get("useTypes"));
-        this.caption = convertCaption(config.getOrDefault("caption", null));
+        this.caption = convertCaption(config.getOrDefault("caption", asList("name", "title", "label", "id")));
         this.nodesOfRelationships = toBoolean(config.get("nodesOfRelationships"));
         this.format = ExportFormat.fromString((String) config.getOrDefault("format", "neo4j-shell"));
         this.cypherFormat = CypherFormat.fromString((String) config.getOrDefault("cypherFormat", "create"));
@@ -127,10 +127,11 @@ public class ExportConfig {
         return format != null && format instanceof String ? ExportFormat.fromString((String)format) : ExportFormat.NEO4J_SHELL;
     }
 
-    private static String[] convertCaption(Object value) {
+    private static Set<String> convertCaption(Object value) {
         if (value == null) return null;
+        if (!(value instanceof List)) throw new RuntimeException("Only array of Strings are allowed!");
         List<String> strings = (List<String>) value;
-        return strings.toArray(new String[strings.size()]);
+        return new HashSet<>(strings);
     }
 
     public boolean streamStatements() {

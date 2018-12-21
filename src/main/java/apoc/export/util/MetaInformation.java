@@ -1,6 +1,5 @@
 package apoc.export.util;
 
-import apoc.gephi.GephiFormatUtils;
 import apoc.meta.Meta;
 import org.neo4j.cypher.export.SubGraph;
 import org.neo4j.graphdb.Node;
@@ -12,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static apoc.gephi.GephiFormatUtils.getCaption;
 import static java.util.Arrays.asList;
 
 /**
@@ -65,14 +65,13 @@ public class MetaInformation {
         }
     }
 
-    public static String getLabelsString(ExportConfig config, Node node) {
-        String[] caption = config.getCaption();
-        if (caption == null || caption.length == 0) {
-            if (!node.getLabels().iterator().hasNext()) return "";
-            String delimiter = ":";
-            return delimiter + FormatUtils.joinLabels(node, delimiter);
-        } else {
-            return GephiFormatUtils.captionGraphml(node, config.getCaption());
-        }
+    public static String getLabelsString(Node node) {
+        if (!node.getLabels().iterator().hasNext()) return "";
+        String delimiter = ":";
+        return delimiter + FormatUtils.joinLabels(node, delimiter);
+    }
+
+    public static String getLabelsStringGephi(ExportConfig config, Node node) {
+        return getCaption(node, config.getCaption());
     }
 }

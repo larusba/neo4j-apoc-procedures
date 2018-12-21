@@ -150,7 +150,7 @@ public class CsvFormat implements Format {
         int nodes = 0;
         for (Node node : graph.getNodes()) {
             row[0]=String.valueOf(node.getId());
-            row[1]=getLabelsString(config, node);
+            row[1]=getLabelsString(node);
             collectProps(nodePropTypes.keySet(), node, reporter, row, 2);
             out.writeNext(row);
             nodes++;

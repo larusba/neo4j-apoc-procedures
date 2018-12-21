@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static apoc.util.MapUtil.map;
+import static apoc.util.TestUtil.getUrlFileName;
 import static apoc.util.TestUtil.testResult;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -34,7 +35,7 @@ public class LoadCsvTest {
     }
 
     @Test public void testLoadCsv() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test.csv");
+        URL url = getUrlFileName("test.csv");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
@@ -50,7 +51,7 @@ CALL apoc.load.csv(url,) YIELD map AS m
 RETURN m.col_1,m.col_2,m.col_3
      */
     @Test public void testLoadCsvWithEmptyColumns() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("empty_columns.csv");
+        URL url = getUrlFileName("empty_columns.csv");
         testResult(db, "CALL apoc.load.csv({url},{failOnError:false,mapping:{col_2:{type:'int'}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
@@ -102,7 +103,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvSkip() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test.csv");
+        URL url = getUrlFileName("test.csv");
         testResult(db, "CALL apoc.load.csv({url},{skip:1,limit:1,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r, "Rana", "11", 1L);
@@ -110,7 +111,7 @@ RETURN m.col_1,m.col_2,m.col_3
                 });
     }
     @Test public void testLoadCsvTabSeparator() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test-tab.csv");
+        URL url = getUrlFileName("test-tab.csv");
         testResult(db, "CALL apoc.load.csv({url},{sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r, 0L,"name", "Rana", "age","11");
@@ -119,7 +120,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvNoHeader() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test-no-header.csv");
+        URL url = getUrlFileName("test-no-header.csv");
         testResult(db, "CALL apoc.load.csv({url},{header:false,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
@@ -130,7 +131,7 @@ RETURN m.col_1,m.col_2,m.col_3
                 });
     }
     @Test public void testLoadCsvIgnoreFields() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test-tab.csv");
+        URL url = getUrlFileName("test-tab.csv");
         testResult(db, "CALL apoc.load.csv({url},{ignore:['age'],sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Rana");
@@ -139,7 +140,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvColonSeparator() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test.dsv");
+        URL url = getUrlFileName("test.dsv");
         testResult(db, "CALL apoc.load.csv({url},{sep:':',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Rana","age","11");
@@ -148,7 +149,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testPipeArraySeparator() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test-pipe-column.csv");
+        URL url = getUrlFileName("test-pipe-column.csv");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},beverage:{array:true,arraySep:'|',type:'string'}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertEquals(asList("Selma", asList("Soda")), r.next().get("list"));
@@ -158,7 +159,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testMapping() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("test-mapping.csv");
+        URL url = getUrlFileName("test-mapping.csv");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},age:{type:'int'},kids:{array:true,arraySep:':',type:'int'},pass:{ignore:true}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
@@ -198,7 +199,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test
     public void testLoadCsvNoFailOnError() throws Exception {
-        String url = Thread.currentThread().getContextClassLoader().getResource("test.csv").getPath();
+        String url = getUrlFileName("test.csv").getPath();
         testResult(db, "CALL apoc.load.csv({url},{failOnError:false})", map("url",url), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
@@ -220,7 +221,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvZip() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("testload.zip");
+        URL url = getUrlFileName("testload.zip");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
@@ -231,7 +232,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvTar() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("testload.tar");
+        URL url = getUrlFileName("testload.tar");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
@@ -242,7 +243,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvTarGz() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("testload.tar.gz");
+        URL url = getUrlFileName("testload.tar.gz");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
@@ -253,7 +254,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
 
     @Test public void testLoadCsvTgz() throws Exception {
-        URL url = Thread.currentThread().getContextClassLoader().getResource("testload.tgz");
+        URL url = getUrlFileName("testload.tgz");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
