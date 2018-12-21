@@ -278,9 +278,38 @@ In `format` config you can use the pattern describe as the Temporal functions: l
 CALL apoc.load.xls('file:///path/to/file.xls','Full',{mapping:{Integer:{type:'int'}, Array:{type:'int',array:true,arraySep:';'}}})
 ----
 
-image::{img}/load.xls.jpg[]
+image::{img}/apoc.load.xls.png[]
 
 [source,cypher]
 ----
 CALL apoc.load.xls('http://bit.ly/2nXgHA2','Kids')
 ----
+
+Some examples with type/dateFormat and dateParse:
+
+[source,cypher]
+----
+CALL apoc.load.xls('test_date.xlsx','sheet',{mapping:{Date:{type:'String'}}})
+----
+
+.results
+
+image::{img}/apoc.load.xls_1.png[]
+
+[source,cypher]
+----
+CALL apoc.load.xls('test_date.xlsx','sheet',{mapping:{Date:{type:'String',dateFormat:'iso_date'}}})
+----
+
+.results
+
+image::{img}/apoc.load.xls_2.png[]
+
+[source,cypher]
+----
+CALL apoc.load.xls('test_date.xlsx','sheet',{mapping:{Date:{type:'String',dateParse:["wrongPath", "dd-MM-yyyy", "dd/MM/yyyy", "yyyy/MM/dd", "yyyy/dd/MM", "yyyy-dd-MM'T'hh:mm:ss"]}}})
+----
+
+.results
+
+image::{img}/apoc.load.xls_3.png[]

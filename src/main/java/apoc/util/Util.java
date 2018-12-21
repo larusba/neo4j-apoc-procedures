@@ -19,7 +19,6 @@ import org.neo4j.procedure.TerminationGuard;
 import javax.lang.model.SourceVersion;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.*;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
@@ -34,7 +33,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static apoc.temporal.TemporalProcedures.ISO_DATE_FORMAT;
+import static apoc.util.DateFormatUtil.getOrCreate;
 import static java.lang.String.format;
 
 /**
@@ -710,42 +709,11 @@ public class Util {
         return getFormat(format).format(value);
     }
 
-    public static TemporalAccessor dateParse(String value, Class<? extends TemporalAccessor> date, String...formats) {
-        String methodName = "parse";
-        try {
-            Method method = date.getDeclaredMethod(methodName, CharSequence.class, DateTimeFormatter.class);
-            Method methodSimple = date.getDeclaredMethod(methodName, CharSequence.class);
-
-            if (formats != null && formats.length > 0) {
-                for (String form : formats) {
-                    try {
-                        try {
-                            return (TemporalAccessor) method.invoke(null, value, getFormat(form));
-                        } catch (InvocationTargetException e) {
-                            return (TemporalAccessor) methodSimple.invoke(null, value);
-                        }
-                    } catch (Exception e) {
-                        continue;
-                    }
-                }
-            } else {
-                return (TemporalAccessor) methodSimple.invoke(null, value);
-            }
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        throw new RuntimeException("Can't format the date with the pattern");
-    }
-
     public static Duration durationParse(String value) {
         return Duration.parse(value);
     }
 
-    private static DateTimeFormatter getFormat(String format) {
-        if (ISO_DATE_FORMAT.containsKey(format.toLowerCase())) {
-            return ISO_DATE_FORMAT.get(format.toLowerCase());
-        }
-        return DateTimeFormatter.ofPattern(format);
+    public static DateTimeFormatter getFormat(String format) {
+        return getOrCreate(format);
     }
 }
