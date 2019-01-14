@@ -3,6 +3,8 @@ package apoc.refactor.util;
 import java.util.Collections;
 import java.util.Map;
 
+import static apoc.util.Util.toBoolean;
+
 /**
  * @author AgileLARUS
  *
@@ -18,17 +20,23 @@ public class RefactorConfig {
 
 	private Map<String,String> propertiesManagement = Collections.singletonMap(MATCH_ALL, OVERWRITE);
 
-	private Object mergeRelsAllowed;
+	private boolean mergeRelsAllowed;
+	private boolean selfRel;
+	private boolean countProperties;
+	private boolean hasProperties;
 
 	public RefactorConfig(Map<String,Object> config) {
 		Object value = config.get("properties");
+		hasProperties = value != null;
 		if (value instanceof String) {
 			this.propertiesManagement = Collections.singletonMap(MATCH_ALL, value.toString());
 		} else if (value instanceof Map) {
 			this.propertiesManagement = (Map<String,String>)value;
 		}
 
-		this.mergeRelsAllowed = config.get("mergeRels");
+		this.mergeRelsAllowed = toBoolean(config.get("mergeRels"));
+		this.selfRel = toBoolean(config.get("selfRel"));
+		this.countProperties = toBoolean(config.get("countProperties"));
 	}
 
 	public String getMergeMode(String name){
@@ -42,7 +50,14 @@ public class RefactorConfig {
 	}
 
 	public boolean getMergeRelsAllowed(){
-		return mergeRelsAllowed == null ? false : (boolean) mergeRelsAllowed;
+		return mergeRelsAllowed;
 	}
 
+	public boolean isSelfRel(){ return selfRel; }
+
+	public boolean hasProperties() {
+		return hasProperties;
+	}
+
+	public boolean isCountProperties() { return this.countProperties;	}
 }
