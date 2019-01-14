@@ -15,13 +15,17 @@ import static apoc.util.Util.toBoolean;
 public class ExportConfig {
     public static final char QUOTECHAR = '"';
     public static final int DEFAULT_BATCH_SIZE = 20000;
+    private static final int DEFAULT_UNWIND_BATCH_SIZE = 100;
     public static final String DEFAULT_DELIM = ",";
     public static final String DEFAULT_QUOTES_TYPE = "always";
     private final boolean streamStatements;
 
+    public enum OptimizationType {NONE, UNWIND_BATCH};
+
+    private OptimizationType optimizationType;
     private int batchSize = DEFAULT_BATCH_SIZE;
+    private int unwindBatchSize = DEFAULT_UNWIND_BATCH_SIZE;
     private boolean silent = false;
-    private boolean useOptimizations = false;
     private String delim = DEFAULT_DELIM;
     private String quotes = "always";
     private boolean useTypes = false;
@@ -30,6 +34,7 @@ public class ExportConfig {
     private ExportFormat format;
     private CypherFormat cypherFormat;
     private final Map<String, Object> config;
+    private Map<String, Object> optimizations;
 
     public int getBatchSize() {
         return batchSize;
@@ -38,8 +43,6 @@ public class ExportConfig {
     public boolean isSilent() {
         return silent;
     }
-
-    public boolean isUseOptimizations() { return useOptimizations; }
 
     public char getDelimChar() {
         return delim.charAt(0);
@@ -59,6 +62,10 @@ public class ExportConfig {
 
     public ExportFormat getFormat() { return format; }
 
+    public int getUnwindBatchSize() {
+        return ((Number)getOptimizations().getOrDefault("batchSize", DEFAULT_UNWIND_BATCH_SIZE)).intValue();
+    }
+
     public CypherFormat getCypherFormat() {
         return cypherFormat;
     }
@@ -70,20 +77,20 @@ public class ExportConfig {
         this.delim = delim(config.getOrDefault("d", String.valueOf(DEFAULT_DELIM)).toString());
         this.useTypes = toBoolean(config.get("useTypes"));
         this.nodesOfRelationships = toBoolean(config.get("nodesOfRelationships"));
-        this.useOptimizations = toBoolean(config.get("useOptimizations"));
         this.format = ExportFormat.fromString((String) config.getOrDefault("format", "neo4j-shell"));
         this.cypherFormat = CypherFormat.fromString((String) config.getOrDefault("cypherFormat", "create"));
         this.config = config;
+        this.optimizations = (Map<String, Object>) config.getOrDefault("useOptimizations", Util.map());
         this.streamStatements = toBoolean(config.get("streamStatements")) || toBoolean(config.get("stream"));
         this.writeNodeProperties = toBoolean(config.get("writeNodeProperties"));
+        this.optimizationType = OptimizationType.valueOf(optimizations.getOrDefault("type", OptimizationType.UNWIND_BATCH.toString()).toString().toUpperCase());
         exportQuotes(config);
     }
 
     private void exportQuotes(Map<String, Object> config)
     {
         try {
-            this.quotes = (String) config.getOrDefault("quotes",
-                                                       DEFAULT_QUOTES_TYPE);
+            this.quotes = (String) config.getOrDefault("quotes",DEFAULT_QUOTES_TYPE);
             if (quotes == null) {
                 quotes = DEFAULT_QUOTES_TYPE;
             }
@@ -139,4 +146,13 @@ public class ExportConfig {
     public long getTimeoutSeconds() {
         return Util.toLong(config.getOrDefault("timeoutSeconds",100));
     }
+
+    public Map<String, Object> getOptimizations() {
+        return optimizations;
+    }
+
+    public OptimizationType getOptimizationType() {
+        return optimizationType;
+    }
+
 }

@@ -1,10 +1,10 @@
 package apoc.export.cypher;
 
-import apoc.export.util.*;
 import apoc.export.cypher.formatter.CypherFormatter;
+import apoc.export.util.ExportConfig;
+import apoc.export.util.ExportFormat;
+import apoc.export.util.Reporter;
 import apoc.util.Util;
-import org.apache.commons.lang.StringUtils;
-import org.jsoup.helper.StringUtil;
 import org.neo4j.cypher.export.SubGraph;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -16,7 +16,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
-import static apoc.export.cypher.formatter.CypherFormatterUtils.*;
+import static apoc.export.cypher.formatter.CypherFormatterUtils.UNIQUE_ID_LABEL;
+import static apoc.export.cypher.formatter.CypherFormatterUtils.UNIQUE_ID_PROP;
 
 /*
  * Idea is to lookup nodes for relationships via a unique index
@@ -35,10 +36,12 @@ public class MultiStatementCypherSubGraphExporter {
 
     private ExportFormat exportFormat;
     private CypherFormatter cypherFormat;
+    private ExportConfig exportConfig;
 
     public MultiStatementCypherSubGraphExporter(SubGraph graph, ExportConfig config) {
         this.graph = graph;
         this.exportFormat = config.getFormat();
+        this.exportConfig = config;
         this.cypherFormat = config.getCypherFormat().getFormatter();
         gatherUniqueConstraints();
     }
@@ -61,11 +64,20 @@ public class MultiStatementCypherSubGraphExporter {
     public void export(ExportConfig config, Reporter reporter, FileManagerFactory.ExportCypherFileManager cypherFileManager) throws IOException {
 
         int batchSize = config.getBatchSize();
-        boolean useOptimizations = config.isUseOptimizations();
+        ExportConfig.OptimizationType useOptimizations = config.getOptimizationType();
 
-        exportNodes(cypherFileManager.getPrintWriter("nodes"), reporter, batchSize, useOptimizations);
-        exportSchema(cypherFileManager.getPrintWriter("schema"));
-        exportRelationships(cypherFileManager.getPrintWriter("relationships"), reporter, batchSize, useOptimizations);
+        switch (useOptimizations) {
+            case NONE:
+                exportNodes(cypherFileManager.getPrintWriter("nodes"), reporter, batchSize);
+                exportSchema(cypherFileManager.getPrintWriter("schema"));
+                exportRelationships(cypherFileManager.getPrintWriter("relationships"), reporter, batchSize);
+                break;
+            default:
+                artificialUniques += countArtificialUniques(graph.getNodes());
+                exportSchema(cypherFileManager.getPrintWriter("schema"));
+                exportNodesUnwindBatch(cypherFileManager.getPrintWriter("nodes"), reporter);
+                exportRelationshipsUnwindBatch(cypherFileManager.getPrintWriter("relationships"), reporter);
+        }
         exportCleanUp(cypherFileManager.getPrintWriter("cleanup"), batchSize);
         reporter.done();
     }
@@ -76,15 +88,18 @@ public class MultiStatementCypherSubGraphExporter {
 
     // ---- Nodes ----
 
-    private void exportNodes(PrintWriter out, Reporter reporter, int batchSize, boolean useOptimizations) {
+    private void exportNodes(PrintWriter out, Reporter reporter, int batchSize) {
         if (graph.getNodes().iterator().hasNext()) {
             begin(out);
-            if (useOptimizations) {
-                appendNodesOptimized(out, reporter);
-            } else {
-                appendNodes(out, batchSize, reporter);
-            }
+            appendNodes(out, batchSize, reporter);
             commit(out);
+            out.flush();
+        }
+    }
+
+    private void exportNodesUnwindBatch(PrintWriter out, Reporter reporter) {
+        if (graph.getNodes().iterator().hasNext()) {
+            appendNodesUnwindBatch(out, reporter);
             out.flush();
         }
     }
@@ -108,27 +123,24 @@ public class MultiStatementCypherSubGraphExporter {
         }
     }
 
-    private void appendNodesOptimized(PrintWriter out, Reporter reporter) {
-        artificialUniques += countArtificialUniques(graph.getNodes());
-        Map<String,Object> result = this.cypherFormat.statementForSameNodes(graph.getNodes(), uniqueConstraints, indexedProperties, indexNames);
-        String cypher = result.get("statement").toString();
-        if (Util.isNotNullOrEmpty(cypher)) {
-            out.println(cypher);
-            reporter.update(Iterables.count(graph.getNodes()), 0, (Long) result.get("properties"));
-        }
+    private void appendNodesUnwindBatch(PrintWriter out, Reporter reporter) {
+        this.cypherFormat.statementForSameNodes(graph.getNodes(), uniqueConstraints, indexedProperties, indexNames, exportConfig, out, reporter);
     }
 
     // ---- Relationships ----
 
-    private void exportRelationships(PrintWriter out, Reporter reporter, int batchSize, boolean  useOptimizations) {
+    private void exportRelationships(PrintWriter out, Reporter reporter, int batchSize) {
         if (graph.getRelationships().iterator().hasNext()) {
             begin(out);
-            if (useOptimizations) {
-                appendRelationshipOptimized(out, reporter);
-            } else {
-                appendRelationships(out, batchSize, reporter);
-            }
+            appendRelationships(out, batchSize, reporter);
             commit(out);
+            out.flush();
+        }
+    }
+
+    private void exportRelationshipsUnwindBatch(PrintWriter out, Reporter reporter) {
+        if (graph.getRelationships().iterator().hasNext()) {
+            appendRelationshipOptimized(out, reporter);
             out.flush();
         }
     }
@@ -152,12 +164,7 @@ public class MultiStatementCypherSubGraphExporter {
     }
 
     private void appendRelationshipOptimized(PrintWriter out, Reporter reporter) {
-        Map<String,Object> result = this.cypherFormat.statementForSameRelationship(graph.getRelationships(), uniqueConstraints, indexedProperties, indexNames);
-        String cypher = result.get("statement").toString();
-        if (cypher != null && !"".equals(cypher)) {
-            out.println(cypher);
-            reporter.update(0, Iterables.count(graph.getRelationships()), (Long) result.get("properties"));
-        }
+        this.cypherFormat.statementForSameRelationship(graph.getRelationships(), uniqueConstraints, indexedProperties, indexNames, exportConfig, out, reporter);
     }
 
     // ---- Schema ----
@@ -240,7 +247,7 @@ public class MultiStatementCypherSubGraphExporter {
 
     // ---- Common ----
 
-    private void begin(PrintWriter out) {
+    public void begin(PrintWriter out) {
         out.print(exportFormat.begin());
     }
 
@@ -253,7 +260,7 @@ public class MultiStatementCypherSubGraphExporter {
         begin(out);
     }
 
-    private void commit(PrintWriter out){
+    public void commit(PrintWriter out){
         out.print(exportFormat.commit());
     }
 
