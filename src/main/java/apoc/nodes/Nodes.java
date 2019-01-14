@@ -1,9 +1,9 @@
 package apoc.nodes;
 
-import apoc.*;
-import apoc.result.LongResult;
-import apoc.result.NodeResult;
-import apoc.result.RelationshipResult;
+import apoc.create.Create;
+import apoc.refactor.util.PropertiesManager;
+import apoc.refactor.util.RefactorConfig;
+import apoc.result.*;
 import apoc.util.Util;
 import org.neo4j.graphdb.*;
 import org.neo4j.helpers.collection.Iterables;
@@ -11,12 +11,15 @@ import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.*;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.procedure.*;
-import org.neo4j.procedure.Description;
-import javax.annotation.Nonnull;
+
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static apoc.path.RelationshipTypeAndDirections.parse;
+import static apoc.refactor.util.RefactorUtil.copyProperties;
+import static apoc.refactor.util.RefactorUtil.mergeRelsWithSameTypeAndDirectionInMergeNodesWithCount;
 import static apoc.util.Util.map;
 
 public class Nodes {
@@ -133,6 +136,80 @@ public class Nodes {
             if (!startDense) return connected(startNodeCursor, endId, typedDirections(tokenRead, pairs, true));
             if (!endDense) return connected(endNodeCursor, startId, typedDirections(tokenRead, pairs, false));
             return connectedDense(startNodeCursor, endNodeCursor, typedDirections(tokenRead, pairs, true));
+        }
+    }
+
+    @Procedure(mode = Mode.WRITE)
+    @Description("apoc.nodes.collapse([nodes...],[{properties:'overwrite' or 'discard' or 'combine'}]) yield from, rel, to merge nodes onto first in list")
+    public Stream<VirtualPathResult> collapse(@Name("nodes") List<Node> nodes, @Name(value = "config", defaultValue = "") Map<String, Object> config) {
+        if (nodes == null || nodes.isEmpty() || nodes.size() < 2) return Stream.empty();
+        Set<Node> nodeSet = new LinkedHashSet<>(nodes);
+        RefactorConfig conf = new RefactorConfig(config);
+        VirtualNode first = createVirtualNode(nodeSet, conf);
+        if (first.getRelationships().iterator().hasNext()) {
+            return StreamSupport.stream(first.getRelationships().spliterator(), false)
+                    .map(relationship -> new VirtualPathResult(relationship.getStartNode(), relationship, relationship.getEndNode()));
+        } else {
+            return Stream.of(new VirtualPathResult(first, null, null));
+        }
+    }
+
+    private VirtualNode createVirtualNode(Set<Node> nodes, RefactorConfig conf) {
+        Create create = new Create();
+        Node first = nodes.iterator().next();
+        List<String> labels = StreamSupport.stream(first.getLabels().spliterator(), false).map(Label::name).collect(Collectors.toList());
+        labels.add("Collapsed");
+        VirtualNode virtualNode = (VirtualNode) create.vNodeFunction(labels, first.getAllProperties());
+        createVirtualRelationship(nodes, virtualNode, first, conf);
+        nodes.stream().skip(1).forEach(node -> {
+            node.getLabels().forEach(label -> { // Set all Label
+                if (!virtualNode.hasLabel(label)) {
+                    virtualNode.addLabel(label);
+                }
+            });
+
+            Map<String, Object> properties = node.getAllProperties();
+            PropertiesManager.mergeProperties(properties, virtualNode, conf); // Set all properties
+            if (properties.size() > 0 && conf.isCountProperties()) {
+                virtualNode.setProperty("count", (Integer) virtualNode.getProperty("count", virtualNode.getAllProperties().size()) + properties.size()); // Count all properties merged or added
+            }
+            createVirtualRelationship(nodes, virtualNode, node, conf);
+        });
+        mergeRelationship(conf, virtualNode);
+        return virtualNode;
+    }
+
+    private void createVirtualRelationship(Set<Node> nodes, VirtualNode virtualNode, Node node, RefactorConfig refactorConfig) {
+        node.getRelationships().forEach(relationship -> {
+            Node startNode = relationship.getStartNode();
+            Node endNode = relationship.getEndNode();
+            VirtualRelationship virtualRelationship = null;
+
+            if (nodes.contains(startNode) && nodes.contains(endNode)) {
+                if (refactorConfig.isSelfRel()) {
+                    virtualRelationship = virtualNode.createRelationshipTo(virtualNode, relationship.getType());
+                }
+            } else {
+                if (startNode.getId() == node.getId()) {
+                    virtualRelationship = virtualNode.createRelationshipTo(endNode, relationship.getType());
+                } else {
+                    virtualRelationship = virtualNode.createRelationshipFrom(startNode, relationship.getType());
+                }
+            }
+            if (virtualRelationship != null) {
+                copyProperties(relationship, virtualRelationship);
+            }
+        });
+    }
+
+    private void mergeRelationship(RefactorConfig conf, VirtualNode virtualNode) {
+        if (conf.getMergeRelsAllowed()) {
+            if(!conf.hasProperties()) {
+                Map<String, Object> map = Collections.singletonMap("properties", "combine");
+                conf = new RefactorConfig(map);
+            }
+            mergeRelsWithSameTypeAndDirectionInMergeNodesWithCount(virtualNode, conf, Direction.OUTGOING);
+            mergeRelsWithSameTypeAndDirectionInMergeNodesWithCount(virtualNode, conf, Direction.INCOMING);
         }
     }
 
