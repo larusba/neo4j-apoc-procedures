@@ -28,10 +28,11 @@ public class GephiFormatUtils {
     }
 
     public static String filterCaption(Node n, Set<String> captions, BiPredicate<String, String> predicate) {
+
         for (String caption : captions) {
             for (String key : n.getPropertyKeys()) {
                 if (predicate.test(key, caption))
-                    return n.getProperty(key).toString();
+                    return n.getProperty(key.toLowerCase()).toString();
             }
 
         }
