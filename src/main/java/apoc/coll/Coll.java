@@ -828,4 +828,42 @@ public class Coll {
 		if (values == null) return false;
         return new HashSet(values).size() == values.size();
     }
+
+
+
+    @Procedure
+    @Description("apoc.coll.dropDuplicateNeighbors(list) - remove duplicate consecutive objects in a list")
+    public Stream<ListResult> dropDuplicateNeighbors(@Name("list") List<Object> list){
+        boolean hasSameType = true;
+        List<Object> newList = new ArrayList<>();
+        newList.add(list.get(0));
+        Class first = list.get(0).getClass();
+
+        for (int i = 1; i < list.size(); i++) {
+            Object element = list.get(i);
+            if (!element.equals(newList.get(newList.size() - 1))) {
+                if (first.isAssignableFrom(element.getClass())) {
+                    newList.add(element);
+                } else {
+                    hasSameType = false;
+                    break;
+                }
+            }
+        }
+
+        if (!hasSameType) {
+            throw new IllegalArgumentException("List elements must be the same type");
+        }
+
+        return list.stream().map((e) -> new ListResult(newList));
+    }
+
+    private static boolean sameTypeForAllElements(List<Object> input) {
+        Class first = input.get(0).getClass();
+        for (int i = 1; i < input.size(); i++) {
+            if (!first.equals(input.get(i).getClass()))
+                return false;
+        }
+        return true;
+    }
 }
