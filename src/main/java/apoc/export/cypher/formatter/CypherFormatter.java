@@ -22,4 +22,6 @@ public interface CypherFormatter {
 	String statementForConstraint(String label, String key);
 
 	String statementForCleanUp(int batchSize);
+
+	String statementForCompoundConstraint(String label, Iterable<String> keys);
 }
