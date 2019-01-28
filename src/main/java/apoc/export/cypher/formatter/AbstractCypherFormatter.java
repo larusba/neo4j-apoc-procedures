@@ -2,9 +2,12 @@ package apoc.export.cypher.formatter;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.helpers.collection.Iterables;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static apoc.export.cypher.formatter.CypherFormatterUtils.Q_UNIQUE_ID_LABEL;
 import static apoc.export.cypher.formatter.CypherFormatterUtils.UNIQUE_ID_PROP;
@@ -16,6 +19,8 @@ import static apoc.export.cypher.formatter.CypherFormatterUtils.quote;
  * @since 16-06-2017
  */
 abstract class AbstractCypherFormatter implements CypherFormatter {
+
+	private static final String STATEMENT_CONSTRAINTS = "CREATE CONSTRAINT ON (node:%s) ASSERT (%s) %s;";
 
 	@Override
 	public String statementForCleanUp(int batchSize) {
@@ -30,8 +35,13 @@ abstract class AbstractCypherFormatter implements CypherFormatter {
 	}
 
 	@Override
-	public String statementForConstraint(String label, String key) {
-		return "CREATE CONSTRAINT ON (node:" + CypherFormatterUtils.quote(label) + ") ASSERT node." + CypherFormatterUtils.quote(key) + " IS UNIQUE;";
+	public String statementForConstraint(String label, Iterable<String> keys) {
+
+		String keysString = StreamSupport.stream(keys.spliterator(), false)
+				.map(key -> "node." + CypherFormatterUtils.quote(key))
+				.collect(Collectors.joining(", "));
+
+		return  String.format(STATEMENT_CONSTRAINTS, CypherFormatterUtils.quote(label), keysString, Iterables.count(keys) > 1 ? "IS NODE KEY" : "IS UNIQUE");
 	}
 
 	protected String mergeStatementForNode(CypherFormat cypherFormat, Node node, Map<String, String> uniqueConstraints, Set<String> indexedProperties, Set<String> indexNames) {

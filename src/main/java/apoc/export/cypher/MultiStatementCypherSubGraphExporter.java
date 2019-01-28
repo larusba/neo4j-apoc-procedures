@@ -140,7 +140,7 @@ public class MultiStatementCypherSubGraphExporter {
             out.println(index);
         }
         if (artificialUniques > 0) {
-            String cypher = this.cypherFormat.statementForConstraint(UNIQUE_ID_LABEL, UNIQUE_ID_PROP);
+            String cypher = this.cypherFormat.statementForConstraint(UNIQUE_ID_LABEL, Collections.singleton(UNIQUE_ID_PROP));
             if (cypher != null && !"".equals(cypher)) {
                 out.println(cypher);
             }
@@ -160,7 +160,8 @@ public class MultiStatementCypherSubGraphExporter {
             String label = index.getLabel().name();
             Iterable<String> props = index.getPropertyKeys();
             if (index.isConstraintIndex()) {
-                String cypher = this.cypherFormat.statementForConstraint(label, Iterables.single(props));
+                String cypher;
+                cypher = this.cypherFormat.statementForConstraint(label, props);
                 if (cypher != null && !"".equals(cypher)) {
                     result.add(cypher);
                 }
@@ -199,7 +200,7 @@ public class MultiStatementCypherSubGraphExporter {
                 artificialUniques -= batchSize;
             }
             begin(out);
-            String cypher = this.cypherFormat.statementForConstraint(UNIQUE_ID_LABEL, UNIQUE_ID_PROP).replaceAll("^CREATE", "DROP");
+            String cypher = this.cypherFormat.statementForConstraint(UNIQUE_ID_LABEL, Collections.singleton(UNIQUE_ID_PROP)).replaceAll("^CREATE", "DROP");
             if (cypher != null && !"".equals(cypher)) {
                 out.println(cypher);
             }
