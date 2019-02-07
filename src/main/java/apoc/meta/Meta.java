@@ -449,7 +449,7 @@ public class Meta {
                 int count = 1;
                 while (nodes.hasNext()) {
                     Node node = nodes.next();
-                    if(count++ % config.getSample() == 0) {
+                    if(count++ % config.getSampleForLabel(label.name()) == 0) {
                         addRelationships(metaData, nodeMeta, labelName, node, relConstraints);
                         addProperties(nodeMeta, labelName, constraints, indexed, node, node);
                     }
@@ -802,7 +802,7 @@ public class Meta {
             long count = 1L;
             while (nodes.hasNext()) {
                 count++;
-                if(count % metaConfig.getSample() == 0) {
+                if(count % metaConfig.getSampleForLabel(labelFromLabel.name()) == 0) {
                     Node node = nodes.next();
                     long maxRels = metaConfig.getMaxRels();
                     for (Relationship rel : node.getRelationships(direction, relationshipType)) {

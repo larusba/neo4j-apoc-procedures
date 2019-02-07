@@ -502,7 +502,7 @@ public class MetaTest {
         db.execute("CREATE (:Person {name:'Sarah', surname:'Taylor'})").close();
         db.execute("CREATE (:Person {name:'Jane'})").close();
         db.execute("CREATE (:Person {name:'Jeff', surname:'Logan'})").close();
-        TestUtil.testResult(db, "CALL apoc.meta.data({sample:2})",
+        TestUtil.testResult(db, "CALL apoc.meta.data({sample:{Person:2}})",
                 (r) -> {
                     Map<String, Object>  personNameProperty = r.next();
                     Map<String, Object>  personSurnameProperty = r.next();
@@ -524,7 +524,7 @@ public class MetaTest {
         db.execute("CREATE (:Person {name:'Jane'})").close();
         db.execute("CREATE (:Person {name:'Jeff', surname:'Logan'})").close();
         db.execute("CREATE (:Person {name:'Tom'})").close();
-        TestUtil.testResult(db, "CALL apoc.meta.data({sample:5})",
+        TestUtil.testResult(db, "CALL apoc.meta.data({sample:{Person:5}})",
                 (r) -> {
                     Map<String, Object>  personNameProperty = r.next();
                     assertEquals("name", personNameProperty.get("property"));
@@ -544,7 +544,7 @@ public class MetaTest {
         db.execute("CREATE (:Person {name:'Sarah', surname:'Taylor'})").close();
         db.execute("CREATE (:Person {name:'Jane'})").close();
         db.execute("CREATE (:Person {name:'Jeff', surname:'Logan'})").close();
-        testCall(db, "CALL apoc.meta.schema({sample:2})",
+        testCall(db, "CALL apoc.meta.schema({sample:{Person:2}})",
                 (row) -> {
 
                     Map<String, Object> o = (Map<String, Object>) row.get("value");
@@ -576,9 +576,9 @@ public class MetaTest {
         db.execute("CREATE (:Person {name:'Jack', surname:'White'})").close();
         db.execute("CREATE (:Person {name:'Joy'})").close();
         db.execute("CREATE (:Person {name:'Sarah', surname:'Taylor'})").close();
-        db.execute("CREATE (:Person {name:'Jeff', surname:'Logan'})").close();
         db.execute("CREATE (:Person {name:'Jane'})").close();
-        testCall(db, "CALL apoc.meta.schema({sample:5})",
+        db.execute("CREATE (:Person {name:'Jeff', surname:'Logan'})").close();
+        testCall(db, "CALL apoc.meta.schema({sample:{Person:5}})",
                 (row) -> {
 
                     Map<String, Object> o = (Map<String, Object>) row.get("value");
@@ -609,7 +609,7 @@ public class MetaTest {
         db.execute("CREATE (:S1 {name:'Jane'})").close();
         db.execute("CREATE (:S6 {name:'Jeff', surname:'Logan'})-[:KNOWS{since:2012}]->(:S7)").close();
 
-        testCall(db, "call apoc.meta.graph({sample:2})",(row) -> {
+        testCall(db, "call apoc.meta.graph({sample:{S7:2}})",(row) -> {
             List<Node> nodes = (List<Node>) row.get("nodes");
             assertEquals(7,nodes.size());
         });
