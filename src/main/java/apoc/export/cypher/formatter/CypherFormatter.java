@@ -19,9 +19,7 @@ public interface CypherFormatter {
 
 	String statementForIndex(String label, Iterable<String> keys);
 
-	String statementForConstraint(String label, String key);
+	String statementForConstraint(String label, Iterable<String> keys);
 
 	String statementForCleanUp(int batchSize);
-
-	String statementForCompoundConstraint(String label, Iterable<String> keys);
 }

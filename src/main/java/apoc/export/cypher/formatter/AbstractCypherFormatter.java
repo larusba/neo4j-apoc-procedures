@@ -6,9 +6,6 @@ import org.neo4j.helpers.collection.Iterables;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -23,7 +20,7 @@ import static apoc.export.cypher.formatter.CypherFormatterUtils.quote;
  */
 abstract class AbstractCypherFormatter implements CypherFormatter {
 
-	private static final String STATEMENT_COMPOUND_CONSTRAINT = "CREATE CONSTRAINT ON (node:%s) ASSERT (%s) IS NODE KEY;";
+	private static final String STATEMENT_CONSTRAINTS = "CREATE CONSTRAINT ON (node:%s) ASSERT (%s) %s;";
 
 	@Override
 	public String statementForCleanUp(int batchSize) {
@@ -38,18 +35,13 @@ abstract class AbstractCypherFormatter implements CypherFormatter {
 	}
 
 	@Override
-	public String statementForConstraint(String label, String key) {
-		return "CREATE CONSTRAINT ON (node:" + CypherFormatterUtils.quote(label) + ") ASSERT node." + CypherFormatterUtils.quote(key) + " IS UNIQUE;";
-	}
-
-	@Override
-	public String statementForCompoundConstraint(String label, Iterable<String> keys) {
+	public String statementForConstraint(String label, Iterable<String> keys) {
 
 		String keysString = StreamSupport.stream(keys.spliterator(), false)
 				.map(key -> "node." + CypherFormatterUtils.quote(key))
 				.collect(Collectors.joining(", "));
 
-		return String.format(STATEMENT_COMPOUND_CONSTRAINT, CypherFormatterUtils.quote(label), keysString);
+		return  String.format(STATEMENT_CONSTRAINTS, CypherFormatterUtils.quote(label), keysString, Iterables.count(keys) > 1 ? "IS NODE KEY" : "IS UNIQUE");
 	}
 
 	protected String mergeStatementForNode(CypherFormat cypherFormat, Node node, Map<String, String> uniqueConstraints, Set<String> indexedProperties, Set<String> indexNames) {

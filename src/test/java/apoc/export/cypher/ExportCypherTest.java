@@ -412,8 +412,8 @@ public class ExportCypherTest {
         static final String EXPECTED_SCHEMA = String.format("BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
                 "CREATE INDEX ON :`Foo`(`name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n");
 
@@ -440,7 +440,7 @@ public class ExportCypherTest {
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_CLEAN_UP_EMPTY = String.format("BEGIN%n" +
@@ -451,7 +451,7 @@ public class ExportCypherTest {
         static final String EXPECTED_ONLY_SCHEMA_NEO4J_SHELL = String.format("BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
                 "CREATE INDEX ON :`Foo`(`name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n");
 
@@ -461,8 +461,8 @@ public class ExportCypherTest {
                 "COMMIT%n" +
                 "BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +
                 "BEGIN%n" +
@@ -472,7 +472,7 @@ public class ExportCypherTest {
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_CYPHER_DATE = String.format("BEGIN%n" +
@@ -481,8 +481,8 @@ public class ExportCypherTest {
                 "COMMIT%n" +
                 "BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +
                 "BEGIN%n" +
@@ -492,7 +492,7 @@ public class ExportCypherTest {
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_CYPHER_TIME = String.format("BEGIN%n" +
@@ -501,8 +501,8 @@ public class ExportCypherTest {
                 "COMMIT%n" +
                 "BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +
                 "BEGIN%n" +
@@ -512,7 +512,7 @@ public class ExportCypherTest {
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_CYPHER_DURATION = String.format("BEGIN%n" +
@@ -521,8 +521,8 @@ public class ExportCypherTest {
                 "COMMIT%n" +
                 "BEGIN%n" +
                 "CREATE INDEX ON :`Bar`(`first_name`,`last_name`);%n" +
-                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT node.`name` IS UNIQUE;%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`Bar`) ASSERT (node.`name`) IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +
                 "BEGIN%n" +
@@ -532,21 +532,21 @@ public class ExportCypherTest {
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_CYPHER_LABELS_ASCENDEND = String.format("BEGIN%n" +
                 "CREATE (:`User`:`User0`:`User1`:`User12`:`UNIQUE IMPORT LABEL` {`name`:\"Alan\", `UNIQUE IMPORT ID`:20});%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "CREATE CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +
                 "BEGIN%n" +
                 "MATCH (n:`UNIQUE IMPORT LABEL`)  WITH n LIMIT 20000 REMOVE n:`UNIQUE IMPORT LABEL` REMOVE n.`UNIQUE IMPORT ID`;%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
-                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT node.`UNIQUE IMPORT ID` IS UNIQUE;%n" +
+                "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
         static final String EXPECTED_NEO4J_SHELL = EXPECTED_NODES + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS + EXPECTED_CLEAN_UP;
