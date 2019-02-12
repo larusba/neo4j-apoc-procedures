@@ -55,7 +55,8 @@ public class ExportCypherTest {
                     "CREATE (b:Person {name: 'Matt', surname: 'Jackson'}) " +
                     "CREATE (c:Person {name: 'Jenny', surname: 'White'}) " +
                     "CREATE (d:Person {name: 'Susan', surname: 'Brown'}) " +
-                    "CREATE (e:Person {name: 'Tom', surname: 'Taylor'});").close();
+                    "CREATE (e:Person {name: 'Tom', surname: 'Taylor'})" +
+                    "CREATE (a)-[:KNOWS]->(b);").close();
         } else {
             db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig(GraphDatabaseSettings.load_csv_file_url_root, directory.getAbsolutePath())
                     .setConfig("apoc.export.file.enabled", "true").newGraphDatabase();
@@ -579,9 +580,13 @@ public class ExportCypherTest {
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n");
 
+        static final String EXPECTED_RELATIONSHIP_COMPOUND_CONSTRAINT = String.format(("BEGIN%n" +
+                "MATCH (n1:`Person`{`surname`:\"Snow\", `name`:\"John\"}), (n2:`Person`{`surname`:\"Jackson\", `name`:\"Matt\"}) CREATE (n1)-[r:`KNOWS`]->(n2);%n" +
+                "COMMIT%n"));
+
         static final String EXPECTED_INDEX_AWAIT_COMPOUND_CONSTRAINT =  String.format("CALL db.awaitIndex(':`Person`(`name`,`surname`)');%n");
 
-        static final String EXPECTED_NEO4J_SHELL_WITH_COMPOUND_CONSTRAINT = EXPECTED_NODES_COMPOUND_CONSTRAINT + EXPECTED_SCHEMA_COMPOUND_CONSTRAINT;
+        static final String EXPECTED_NEO4J_SHELL_WITH_COMPOUND_CONSTRAINT = EXPECTED_NODES_COMPOUND_CONSTRAINT + EXPECTED_SCHEMA_COMPOUND_CONSTRAINT + EXPECTED_RELATIONSHIP_COMPOUND_CONSTRAINT;
 
         static final String EXPECTED_CYPHER_SHELL_WITH_COMPOUND_CONSTRAINT = EXPECTED_NEO4J_SHELL_WITH_COMPOUND_CONSTRAINT
                 .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())

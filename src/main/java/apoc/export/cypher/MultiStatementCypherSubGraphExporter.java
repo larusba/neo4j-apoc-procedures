@@ -1,5 +1,6 @@
 package apoc.export.cypher;
 
+import apoc.export.cypher.formatter.CypherFormatterUtils;
 import apoc.export.util.*;
 import apoc.export.cypher.formatter.CypherFormatter;
 import apoc.util.Util;
@@ -13,6 +14,8 @@ import org.neo4j.helpers.collection.Iterables;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static apoc.export.cypher.formatter.CypherFormatterUtils.*;
 
@@ -26,7 +29,7 @@ import static apoc.export.cypher.formatter.CypherFormatterUtils.*;
 public class MultiStatementCypherSubGraphExporter {
 
     private final SubGraph            graph;
-    private final Map<String, String> uniqueConstraints = new HashMap<>();
+    private final Map<String, Set<String>> uniqueConstraints = new HashMap<>();
     private Set<String> indexNames        = new LinkedHashSet<>();
     private Set<String> indexedProperties = new LinkedHashSet<>();
     private Long artificialUniques = 0L;
@@ -231,11 +234,12 @@ public class MultiStatementCypherSubGraphExporter {
     private void gatherUniqueConstraints() {
         for (IndexDefinition indexDefinition : graph.getIndexes()) {
             String label = indexDefinition.getLabel().name();
-            String prop = Iterables.first(indexDefinition.getPropertyKeys());
+            //String prop = Iterables.first(indexDefinition.getPropertyKeys());
+            Set<String> props = StreamSupport.stream(indexDefinition.getPropertyKeys().spliterator(), false).collect(Collectors.toSet());
             indexNames.add(label);
-            indexedProperties.add(prop);
+            indexedProperties.addAll(props);
             if (indexDefinition.isConstraintIndex()) {
-                if (!uniqueConstraints.containsKey(label)) uniqueConstraints.put(label, prop);
+                if (!uniqueConstraints.containsKey(label)) uniqueConstraints.put(label, props);
             }
         }
     }
@@ -247,8 +251,8 @@ public class MultiStatementCypherSubGraphExporter {
         while (labels.hasNext()) {
             Label next = labels.next();
             String labelName = next.name();
-            if (uniqueConstraints.containsKey(labelName) && node.hasProperty(uniqueConstraints.get(labelName)))
-                uniqueFound = true;
+            uniqueFound = CypherFormatterUtils.isUniqueLabelFound(node, uniqueConstraints, labelName);
+
         }
         if (!uniqueFound) {
             artificialUniques++;

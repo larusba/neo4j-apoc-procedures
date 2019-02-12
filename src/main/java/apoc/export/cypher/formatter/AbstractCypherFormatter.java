@@ -44,7 +44,7 @@ abstract class AbstractCypherFormatter implements CypherFormatter {
 		return  String.format(STATEMENT_CONSTRAINTS, CypherFormatterUtils.quote(label), keysString, Iterables.count(keys) > 1 ? "IS NODE KEY" : "IS UNIQUE");
 	}
 
-	protected String mergeStatementForNode(CypherFormat cypherFormat, Node node, Map<String, String> uniqueConstraints, Set<String> indexedProperties, Set<String> indexNames) {
+	protected String mergeStatementForNode(CypherFormat cypherFormat, Node node, Map<String, Set<String>> uniqueConstraints, Set<String> indexedProperties, Set<String> indexNames) {
 		StringBuilder result = new StringBuilder(1000);
 		result.append("MERGE ");
 		result.append(CypherFormatterUtils.formatNodeLookup("n", node, uniqueConstraints, indexNames));
@@ -62,7 +62,7 @@ abstract class AbstractCypherFormatter implements CypherFormatter {
 		return result.toString();
 	}
 
-	public String mergeStatementForRelationship(CypherFormat cypherFormat, Relationship relationship, Map<String, String> uniqueConstraints, Set<String> indexedProperties) {
+	public String mergeStatementForRelationship(CypherFormat cypherFormat, Relationship relationship, Map<String, Set<String>> uniqueConstraints, Set<String> indexedProperties) {
 		StringBuilder result = new StringBuilder(1000);
 		result.append("MATCH ");
 		result.append(CypherFormatterUtils.formatNodeLookup("n1", relationship.getStartNode(), uniqueConstraints, indexedProperties));
