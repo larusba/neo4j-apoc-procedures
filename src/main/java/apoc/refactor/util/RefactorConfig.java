@@ -22,9 +22,12 @@ public class RefactorConfig {
 	private Map<String,String> propertiesManagement = Collections.singletonMap(MATCH_ALL, OVERWRITE);
 
 	private boolean mergeRelsAllowed;
+	private boolean mergeVirtualRels;
 	private boolean selfRel;
+	private boolean countMerge;
 	private boolean countProperties;
 	private boolean hasProperties;
+	private boolean collapsedLabel;
 
 	public RefactorConfig(Map<String,Object> config) {
 		Object value = config.get("properties");
@@ -36,8 +39,11 @@ public class RefactorConfig {
 		}
 
 		this.mergeRelsAllowed = toBoolean(config.get("mergeRels"));
+		this.mergeVirtualRels = toBoolean(config.getOrDefault("mergeRelsVirtual", true));
 		this.selfRel = toBoolean(config.get("selfRel"));
-		this.countProperties = toBoolean(config.get("countProperties"));
+		this.countMerge = toBoolean(config.getOrDefault("countMerge", true));
+		this.countProperties = toBoolean(config.getOrDefault("countProperties", true));
+		this.collapsedLabel = toBoolean(config.get("collapsedLabel"));
 	}
 
 	public String getMergeMode(String name){
@@ -47,6 +53,16 @@ public class RefactorConfig {
 			}
 		}
 		return propertiesManagement.getOrDefault(name,propertiesManagement.getOrDefault(MATCH_ALL, OVERWRITE));
+
+	}
+
+	public String getMergeModeVirtual(String name){
+		for (String key : propertiesManagement.keySet()) {
+			if (!key.equals(MATCH_ALL) && name.matches(key)) {
+				return propertiesManagement.get(key);
+			}
+		}
+		return propertiesManagement.getOrDefault(name,propertiesManagement.getOrDefault(MATCH_ALL, DISCARD));
 
 	}
 
@@ -60,5 +76,17 @@ public class RefactorConfig {
 		return hasProperties;
 	}
 
-	public boolean isCountProperties() { return this.countProperties;	}
+	public boolean isCountMerge() { return this.countMerge;	}
+
+	public boolean isCollapsedLabel() {
+		return collapsedLabel;
+	}
+
+	public boolean isCountProperties() {
+		return countProperties;
+	}
+
+	public boolean isMergeVirtualRels() {
+		return mergeVirtualRels;
+	}
 }

@@ -961,50 +961,6 @@ Sometimes type information gets lost, these functions help you to coerce an "Any
 | apoc.create.uuid() | returns a UUID string
 |===
 
-On `apoc.nodes.collapse` with config properties you can choose from 3 different behavior:
- * "properties": "overwrite" : if there is the same property in more node, in the new one will have the last relationship's/node's property value
- * "properties": "discard" : if there is the same property in more node, the new one will have the first relationship's/node's property value
- * "properties": "combine" : if there is the same property in more node, the new one a value's array with all relationship's/node's values
-
-Relationships properties are managed with the same nodes' method, if properties parameter isn't set relationships properties are combined.
-
-On `apoc.nodes.collapse` there are many config param:
- * "mergeRels: true/false" : give the possibility to merge relationships with same type and direction.
- * "selfRel: true/false" : give the possibility to create the self relationship.
- * "countProperties: true/false" : give the possibility count all the properties merged for nodes and relationships.
-
-e.g:
-
-With this dataset we have:
-
-image::{img}/apoc.nodes.collapse_1.png[width=600]
-
-call the apoc as:
-----
-MATCH (p:Person)-[:LIVES_IN]->(c:City)
-WITH c, collect(p) as subgraph
-CALL apoc.nodes.collapse(subgraph,{properties:'combine', mergeRels:true, countProperties: true}) yield from, rel, to
-return from, rel, to
-----
-we have this result:
-
-image::{img}/apoc.nodes.collapse_2.png[width=600]
-
-With this dataset we have:
-
-image::{img}/apoc.nodes.collapse_3.png[width=600]
-
-call the apoc as:
-----
-MATCH (p:Person)-[:LIVES_IN]->(c:City)
-WITH c, c + collect(p) as subgraph
-CALL apoc.nodes.collapse(subgraph,{properties:'ignore', mergeRels:true, countProperties: true}) yield from, rel, to
-return from, rel, to
-----
-we have this result:
-
-image::{img}/apoc.nodes.collapse_4.png[width=600]
-
 ==== rel-direction-pattern syntax:
 `[<]RELATIONSHIP_TYPE1[>]|[<]RELATIONSHIP_TYPE2[>]|...`
 

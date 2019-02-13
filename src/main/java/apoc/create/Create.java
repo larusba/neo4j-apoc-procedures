@@ -7,7 +7,10 @@ import apoc.util.Util;
 import org.neo4j.graphdb.*;
 import org.neo4j.helpers.collection.Iterables;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
@@ -146,10 +149,6 @@ public class Create {
     @UserFunction("apoc.create.vNode")
     @Description("apoc.create.vNode(['Label'], {key:value,...}) returns a virtual node")
     public Node vNodeFunction(@Name("label") List<String> labelNames, @Name(value = "props",defaultValue = "{}") Map<String, Object> props) {
-        if (labelNames == null) {
-            labelNames = new ArrayList<>();
-        }
-        labelNames.add("VirtualNode");
         return new VirtualNode(Util.labels(labelNames), props, db);
     }
 
