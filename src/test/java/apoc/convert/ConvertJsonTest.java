@@ -379,7 +379,6 @@ public class ConvertJsonTest {
             assertEquals("Only include or exclude attribute are possible!", e.getMessage());
             throw e;
         }
-
     }
 
     @Test(expected = RuntimeException.class)
@@ -392,7 +391,6 @@ public class ConvertJsonTest {
             assertEquals("Only include or exclude attribute are possible!", e.getMessage());
             throw e;
         }
-
     }
 
     @Test(expected = RuntimeException.class)
@@ -405,7 +403,6 @@ public class ConvertJsonTest {
             assertEquals("List can't be empty!", e.getMessage());
             throw e;
         }
-
     }
 
     private static void statementForConfig(GraphDatabaseService db) {
