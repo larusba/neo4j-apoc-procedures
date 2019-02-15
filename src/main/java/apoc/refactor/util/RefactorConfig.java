@@ -38,7 +38,7 @@ public class RefactorConfig {
 		}
 
 		this.mergeRelsAllowed = toBoolean(config.get("mergeRels"));
-		this.mergeVirtualRels = toBoolean(config.getOrDefault("mergeRelsVirtual", true));
+		this.mergeVirtualRels = toBoolean(config.getOrDefault("mergeVirtualRels", true));
 		this.selfRel = toBoolean(config.get("selfRel"));
 		this.countMerge = toBoolean(config.getOrDefault("countMerge", true));
 		this.collapsedLabel = toBoolean(config.get("collapsedLabel"));
