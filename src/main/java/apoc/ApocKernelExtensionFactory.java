@@ -6,17 +6,17 @@ import apoc.index.IndexUpdateTransactionEventHandler;
 import apoc.trigger.Trigger;
 import apoc.ttl.TTLLifeCycle;
 import apoc.util.ApocUrlStreamHandlerFactory;
+import apoc.uuid.Uuid;
 import org.neo4j.kernel.AvailabilityGuard;
-import apoc.uuid.UUIDLifeCycle;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.spi.KernelContext;
-import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
+import org.neo4j.scheduler.JobScheduler;
 
 import java.net.URL;
 
@@ -60,7 +60,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
         private Trigger.LifeCycle triggerLifeCycle;
         private Log userLog;
         private TTLLifeCycle ttlLifeCycle;
-        private UUIDLifeCycle uuidLifeCycle;
+        private Uuid.UuidLifeCycle uuidLifeCycle;
 
         private IndexUpdateTransactionEventHandler.LifeCycle indexUpdateLifeCycle;
         private CypherProcedures.CustomProcedureStorage customProcedureStorage;
@@ -84,7 +84,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
             ttlLifeCycle = new TTLLifeCycle(Pools.NEO4J_SCHEDULER, db, log.getUserLog(TTLLifeCycle.class));
             ttlLifeCycle.start();
 
-            uuidLifeCycle = new UUIDLifeCycle(Pools.NEO4J_SCHEDULER, db, log.getUserLog(UUIDLifeCycle.class));
+            uuidLifeCycle = new Uuid.UuidLifeCycle(db, log.getUserLog(Uuid.class));
             uuidLifeCycle.start();
 
             triggerLifeCycle = new Trigger.LifeCycle(db, log.getUserLog(Trigger.class));
@@ -104,32 +104,35 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
 
         @Override
         public void stop() throws Throwable {
-            if (ttlLifeCycle !=null)
+            if (ttlLifeCycle !=null) {
                 try {
                     ttlLifeCycle.stop();
                 } catch(Exception e) {
                     userLog.warn("Error stopping ttl service",e);
                 }
-            if (triggerLifeCycle !=null)
+            }
+            if (triggerLifeCycle !=null) {
                 try {
                     triggerLifeCycle.stop();
                 } catch(Exception e) {
                     userLog.warn("Error stopping trigger service",e);
                 }
-            if (indexUpdateLifeCycle !=null)
+            }
+            if (indexUpdateLifeCycle !=null) {
                 try {
                     indexUpdateLifeCycle.stop();
                 } catch(Exception e) {
                     userLog.warn("Error stopping index update service",e);
                 }
+            }
 
-            if (uuidLifeCycle !=null)
+            if (uuidLifeCycle !=null) {
                 try {
                     uuidLifeCycle.stop();
-                } catch(Exception e) {
-                    userLog.warn("Error stopping uuid service",e);
+                } catch (Exception e) {
+                    userLog.warn("Error stopping uuid service", e);
                 }
-
+            }
 
         }
 
