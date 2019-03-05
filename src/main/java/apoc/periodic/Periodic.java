@@ -2,14 +2,20 @@ package apoc.periodic;
 
 import apoc.Pools;
 import apoc.util.Util;
-import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.helpers.collection.Pair;
+import org.neo4j.kernel.availability.AvailabilityListener;
+import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
+import org.neo4j.kernel.impl.core.GraphProperties;
+import org.neo4j.kernel.impl.core.GraphPropertiesProxy;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,6 +26,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static apoc.util.Util.map;
 import static apoc.util.Util.merge;
 import static java.lang.System.nanoTime;
 import static java.util.Collections.singletonMap;
@@ -148,6 +155,7 @@ public class Periodic {
             future.cancel(true);
             return Stream.of(info.update(future));
         }
+        JobStorage.remove((GraphDatabaseAPI)db, name);
         return Stream.empty();
     }
 
@@ -165,11 +173,16 @@ public class Periodic {
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.periodic.repeat('name',statement,repeat-rate-in-seconds, config) submit a repeatedly-called background statement. Fourth parameter 'config' is optional and can contain 'params' entry for nested statement.")
+    @Description("apoc.periodic.repeat('name',statement,repeat-rate-in-seconds, config) submit a repeatedly-called background statement. Fourth parameter 'config' is optional and can contains 'params' entry for nested statement and 'retryOnError' entry to repeat statement in case of error.")
     public Stream<JobInfo> repeat(@Name("name") String name, @Name("statement") String statement, @Name("rate") long rate, @Name(value = "config", defaultValue = "{}") Map<String,Object> config ) {
-        Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
-        JobInfo info = schedule(name, () -> Iterators.count(db.execute(statement, params)),0,rate);
-        return Stream.of(info);
+
+        // For scheduling persistence
+        boolean persist = (Boolean)config.getOrDefault("persist", false);
+        if(persist) {
+            JobStorage.persist((GraphDatabaseAPI)db, name, statement, rate, config);
+        }
+
+        return Stream.of(createAndScheduleJobInfo(db, log, name, statement, rate, config));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -206,6 +219,39 @@ public class Periodic {
         return info;
     }
 
+    public static JobInfo schedule(JobInfo info, Runnable task) {
+        Future future = list.remove(info);
+        if (future != null && !future.isDone()) future.cancel(false);
+
+        ScheduledFuture<?> newFuture = Pools.SCHEDULED.scheduleWithFixedDelay(task, info.delay, info.rate, TimeUnit.SECONDS);
+        list.put(info,newFuture);
+        return info;
+    }
+
+    public static JobInfo createAndScheduleJobInfo(GraphDatabaseService db, Log log, String name, String statement, Long rate, Map<String, Object> config){
+
+        Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
+        boolean retryOnError = (Boolean)config.getOrDefault("retryOnError", false);
+
+        final JobInfo jobInfo = new JobInfo(name,0,rate);
+        schedule(jobInfo, () -> {
+            if (!retryOnError) {
+                Iterators.count(db.execute(statement, params));
+                jobInfo.lastSuccessful = Instant.now().toEpochMilli();
+            } else {
+                try {
+                    Iterators.count(db.execute(statement, params));
+                    jobInfo.lastSuccessful = Instant.now().toEpochMilli();
+                } catch (Exception e) {
+                    log.error("Query execution failed: " + e.getMessage(), e);
+                    jobInfo.failures++;
+                    jobInfo.lastFailure = Instant.now().toEpochMilli();
+                }
+            }
+        });
+
+        return jobInfo;
+    }
 
     /**
      * as long as cypherLoop does not return 0, null, false, or the empty string as 'value' do:
@@ -463,6 +509,10 @@ public class Periodic {
         public long rate;
         public boolean done;
         public boolean cancelled;
+        public long started;
+        public long lastFailure;
+        public long failures;
+        public long lastSuccessful;
 
         public JobInfo(String name) {
             this.name = name;
@@ -472,6 +522,10 @@ public class Periodic {
             this.name = name;
             this.delay = delay;
             this.rate = rate;
+            this.started = Instant.now().toEpochMilli();
+            this.lastFailure = -1;
+            this.failures = 0;
+            this.lastSuccessful = -1;
         }
 
         public JobInfo update(Future future) {
@@ -508,5 +562,84 @@ public class Periodic {
                 Pools.SCHEDULED.schedule(() -> submit(name, this), rate, TimeUnit.SECONDS);
             }
         }
+    }
+
+    public static class JobStorage implements AvailabilityListener {
+        public static final String APOC_PERIODIC = "apoc.periodic";
+        public static final String JOBS = "jobs";
+        private final GraphDatabaseService db;
+        private final GraphDatabaseAPI api;
+        private final Log log;
+
+        public JobStorage(GraphDatabaseService db, Log log){
+            this.db = db;
+            this.api = (GraphDatabaseAPI)db;
+            this.log = log;
+        }
+
+        @Override
+        public void available() {
+            restoreJobs();
+        }
+
+        @Override
+        public void unavailable() {
+
+        }
+
+        public static Map<String, Object> persist(GraphDatabaseAPI api, String name, String statement, long rate, Map<String, Object> config){
+            Map<String, Object> dataValues = map("statement", statement, "rate", rate, "config", config);
+            return updateCustomJob(getProperties(api), name, dataValues);
+        }
+
+        public static Map<String, Object> remove(GraphDatabaseAPI api, String name) {
+            return updateCustomJob(getProperties(api), name, null);
+        }
+
+        public static GraphPropertiesProxy getProperties(GraphDatabaseAPI api){
+            return api.getDependencyResolver().resolveDependency(EmbeddedProxySPI.class).newGraphPropertiesProxy();
+        }
+
+        private synchronized static Map<String, Object> updateCustomJob(GraphProperties properties, String name, Map<String, Object> dataValues) {
+            if (name == null) return null;
+            try (Transaction tx = properties.getGraphDatabase().beginTx()) {
+                Map<String, Map<String, Map<String, Object>>> data = readData(properties);
+                Map<String, Map<String, Object>> jobData = data.get(JOBS);
+                Map<String, Object> previous = (dataValues == null) ? jobData.remove(name) : jobData.put(name, dataValues);
+                if (dataValues != null || previous != null) {
+                    properties.setProperty(APOC_PERIODIC, Util.toJson(data));
+                }
+                tx.success();
+                return previous;
+            }
+        }
+
+        private static Map<String, Map<String, Map<String, Object>>> readData(GraphProperties properties) {
+            try (Transaction tx = properties.getGraphDatabase().beginTx()) {
+                String procedurePropertyData = (String) properties.getProperty(APOC_PERIODIC, "{\"jobs\":{}}");
+                Map result = Util.fromJson(procedurePropertyData, Map.class);
+                tx.success();
+                return result;
+            }
+        }
+
+        private void restoreJobs() {
+            GraphPropertiesProxy properties = getProperties(api);
+            Map<String, Map<String, Map<String, Object>>> data = readData(properties);
+            Map<String, Map<String, Object>> jobs = data.get(JOBS);
+            jobs.forEach( (job, values) -> {
+                String statement = (String) values.get("statement");
+                Long rate = (Long) values.get("rate");
+                Map<String, Object> config = (Map<String, Object>) values.get("config");
+                createAndScheduleJobInfo(db, log, job, statement, rate, config);
+            });
+        }
+
+        public static Map<String, Map<String, Map<String, Object>>> list(GraphPropertiesProxy properties) {
+            try (Transaction tx = properties.getGraphDatabase().beginTx()) {
+                return readData(properties);
+            }
+        }
+
     }
 }
