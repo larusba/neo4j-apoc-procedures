@@ -15,10 +15,12 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
-import static apoc.util.TestUtil.testCall;
-import static apoc.util.TestUtil.testResult;
+import static apoc.util.TestUtil.*;
 import static apoc.util.Util.map;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.*;
@@ -378,10 +380,15 @@ System.out.println("call list" + db.execute(callList).resultAsString());
 
     @Test
     public void testRepeatParams() {
-        db.execute(
-                "CALL apoc.periodic.repeat('repeat-params', 'MERGE (person:Person {name: {nameValue}})', 2, {params: {nameValue: 'John Doe'}} ) YIELD name RETURN name" );
+        db.execute("CALL apoc.periodic.repeat('repeat-params', 'MERGE (person:Person {name: {nameValue}})', 2, {params: {nameValue: 'John Doe'}} ) YIELD name RETURN name" );
         try {
             Thread.sleep(3000);
+            testCall(db, "CALL apoc.periodic.list()", row -> {
+               assertNotNull(row.get("started"));
+               assertNotNull(row.get("lastSuccessful"));
+               assertEquals(-1L, row.get("lastFailure"));
+           });
+
         } catch (InterruptedException e) {
 
         }
@@ -390,6 +397,63 @@ System.out.println("call list" + db.execute(callList).resultAsString());
                 "MATCH (p:Person {name: 'John Doe'}) RETURN p.name AS name",
                 row -> assertEquals( row.get( "name" ), "John Doe" )
         );
+    }
+
+    @Test
+    public void testRepeatRetryOnFailFalse() {
+
+        db.execute(
+                "CALL apoc.periodic.repeat('repeat-retry-on-fail-false', 'MERGE (lastTimestamp:timestamp) ON CREATE SET lastTimestamp.timestamp = 0 WITH lastTimestamp CALL apoc.load.jdbc(\"jdbc:sqlserver://localhost:1433;databaseName=TestDatabase\",\"SELECT * FROM PERSON\") YIELD row RETURN row', 2, {params:{}} )" );
+        try {
+            Thread.sleep(3000);
+            testCall(db, "CALL apoc.periodic.list()", row -> {
+                assertEquals(-1L, row.get("lastFailure"));
+                assertNotNull(row.get("started"));
+                assertEquals(0L, row.get("failures"));
+            });
+        } catch (InterruptedException e) {
+
+        }
+
+        testResult(db,
+                "MATCH (p:Person) RETURN p", row -> {
+            assertNotNull(row);
+            assertFalse(row.hasNext());
+        });
+    }
+
+    @Test
+    public void testRepeatRetryOnFailTrue() {
+
+        db.execute(
+                "CALL apoc.periodic.repeat('repeat-retry-on-fail-true', 'MERGE (lastTimestamp:timestamp) ON CREATE SET lastTimestamp.timestamp = 0 WITH lastTimestamp CALL apoc.load.jdbc(\"jdbc:sqlserver://localhost:1433;databaseName=TestDatabase\",\"SELECT * FROM PERSON\") YIELD row RETURN row', 3, {params:{}, retryOnError: true} )" );
+        try {
+            Thread.sleep(3000);
+            Map<String, Object> result1 = db.execute("CALL apoc.periodic.list()").next();
+            assertNotNull(result1.get("started"));
+            assertTrue((Long)result1.get("failures") > 0L);
+            assertEquals(1L, result1.get("failures"));
+            assertNotNull(result1.get("lastFailure"));
+
+            Thread.sleep(3000);
+            Map<String, Object> result2 = db.execute("CALL apoc.periodic.list()").next();
+            assertNotNull(result2.get("started"));
+            assertEquals(result1.get("started"), result2.get("started"));
+            assertTrue((Long)result2.get("failures") > 1L);
+            assertTrue((Long)result2.get("failures") > (Long)result1.get("failures"));
+            assertEquals(2L, result2.get("failures"));
+            assertNotNull(result2.get("lastFailure"));
+            assertTrue((Long)result2.get("lastFailure") > (Long)result1.get("lastFailure"));
+
+        } catch (InterruptedException e) {
+
+        }
+
+        testResult(db,
+                "MATCH (p:Person) RETURN p", row -> {
+                    assertNotNull(row);
+                    assertFalse(row.hasNext());
+                });
     }
 
     private long tryReadCount(int maxAttempts, String statement, long expected) throws InterruptedException {
@@ -407,5 +471,135 @@ System.out.println("call list" + db.execute(callList).resultAsString());
         try (ResourceIterator<Long> it = db.execute(statement).columnAs("count")) {
             return Iterators.single(it);
         }
+    }
+
+    @Test
+    public void testPeriodicJobStoragePersist(){
+        db.execute("CALL apoc.periodic.repeat('repeat-params', 'MERGE (person:Person {name: {nameValue}})', 2, {params: {nameValue: 'John Doe'}, persist : true} ) YIELD name RETURN name" );
+
+        Map<String, Map<String, Map<String, Object>>> apocPeriodicJobs = Periodic.JobStorage.list(Periodic.JobStorage.getProperties((GraphDatabaseAPI) db));
+        assertNotNull(apocPeriodicJobs);
+        assertFalse(apocPeriodicJobs.isEmpty());
+
+        Map<String, Map<String, Object>> jobs = apocPeriodicJobs.get(Periodic.JobStorage.JOBS);
+        assertNotNull(jobs);
+        assertFalse(jobs.isEmpty());
+        assertTrue(jobs.containsKey("repeat-params"));
+
+        Map<String, Object> dataJob = jobs.get("repeat-params");
+        assertNotNull(dataJob);
+        assertFalse(dataJob.isEmpty());
+        assertTrue(dataJob.containsKey("statement"));
+        assertTrue(dataJob.containsKey("rate"));
+        assertTrue(dataJob.containsKey("config"));
+        assertEquals("MERGE (person:Person {name: {nameValue}})", dataJob.get("statement"));
+        assertEquals(2L, dataJob.get("rate"));
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("nameValue", "John Doe");
+        Map<String, Object> config = new HashMap<>();
+        config.put("params", params);
+        config.put("persist", Boolean.TRUE);
+
+        assertEquals(config, dataJob.get("config"));
+
+        Periodic.JobStorage.remove((GraphDatabaseAPI) db, "repeat-params");
+    }
+
+    @Test
+    public void testPeriodicJobStorageRemove(){
+        db.execute("CALL apoc.periodic.repeat('repeat-params', 'MERGE (person:Person {name: {nameValue}})', 2, {params: {nameValue: 'John Doe'}, persist : true} ) YIELD name RETURN name" );
+
+        Map<String, Map<String, Map<String, Object>>> apocPeriodicJobsBeforeRemove = Periodic.JobStorage.list(Periodic.JobStorage.getProperties((GraphDatabaseAPI) db));
+        assertNotNull(apocPeriodicJobsBeforeRemove);
+        assertFalse(apocPeriodicJobsBeforeRemove.isEmpty());
+
+        Map<String, Map<String, Object>> jobsBeforeRemove = apocPeriodicJobsBeforeRemove.get(Periodic.JobStorage.JOBS);
+        assertNotNull(jobsBeforeRemove);
+        assertTrue(jobsBeforeRemove.containsKey("repeat-params"));
+
+        Map<String, Object> dataJobBeforeRemove = jobsBeforeRemove.get("repeat-params");
+        assertNotNull(dataJobBeforeRemove);
+        assertFalse(dataJobBeforeRemove.isEmpty());
+        assertTrue(dataJobBeforeRemove.containsKey("statement"));
+        assertTrue(dataJobBeforeRemove.containsKey("rate"));
+        assertTrue(dataJobBeforeRemove.containsKey("config"));
+
+        assertEquals("MERGE (person:Person {name: {nameValue}})", dataJobBeforeRemove.get("statement"));
+        assertEquals(2L, dataJobBeforeRemove.get("rate"));
+        Map<String, Object> params = new HashMap<>();
+        params.put("nameValue", "John Doe");
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("params", params);
+        config.put("persist", Boolean.TRUE);
+        assertEquals(config, dataJobBeforeRemove.get("config"));
+
+        Periodic.JobStorage.remove((GraphDatabaseAPI) db, "repeat-params");
+        Map<String, Map<String, Map<String, Object>>> apocPeriodicAfterRemove = Periodic.JobStorage.list(Periodic.JobStorage.getProperties((GraphDatabaseAPI) db));
+        assertNotNull(apocPeriodicAfterRemove);
+        assertFalse(apocPeriodicAfterRemove.isEmpty());
+
+        Map<String, Map<String, Object>> jobsAfterRemove = apocPeriodicAfterRemove.get(Periodic.JobStorage.JOBS);
+        assertNotNull(jobsAfterRemove);
+        assertTrue(jobsAfterRemove.isEmpty());
+
+    }
+
+    @Test
+    public void testPeriodicJobStorageUpdate(){
+        db.execute("CALL apoc.periodic.repeat('repeat-params', 'MERGE (person:Person {name: {nameValue}})', 2, {params: {nameValue: 'John Doe'}, persist : true} ) YIELD name RETURN name" );
+
+        Map<String, Map<String, Map<String, Object>>> apocPeriodicJobsBeforeUpdate = Periodic.JobStorage.list(Periodic.JobStorage.getProperties((GraphDatabaseAPI) db));
+        assertNotNull(apocPeriodicJobsBeforeUpdate);
+        assertFalse(apocPeriodicJobsBeforeUpdate.isEmpty());
+
+        Map<String, Map<String, Object>> jobsBeforeUpdate = apocPeriodicJobsBeforeUpdate.get(Periodic.JobStorage.JOBS);
+        assertNotNull(jobsBeforeUpdate);
+        assertTrue(jobsBeforeUpdate.containsKey("repeat-params"));
+
+        Map<String, Object> dataJobBeforeUpdate = jobsBeforeUpdate.get("repeat-params");
+        assertNotNull(dataJobBeforeUpdate);
+        assertFalse(dataJobBeforeUpdate.isEmpty());
+        assertTrue(dataJobBeforeUpdate.containsKey("statement"));
+        assertTrue(dataJobBeforeUpdate.containsKey("rate"));
+        assertTrue(dataJobBeforeUpdate.containsKey("config"));
+
+        assertEquals("MERGE (person:Person {name: {nameValue}})", dataJobBeforeUpdate.get("statement"));
+        assertEquals(2L, dataJobBeforeUpdate.get("rate"));
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("nameValue", "John Doe");
+        Map<String, Object> config = new HashMap<>();
+        config.put("params", params);
+        config.put("persist", Boolean.TRUE);
+        assertEquals(config, dataJobBeforeUpdate.get("config"));
+
+        params.remove("nameValue");
+        params.put("valueName", "Doe John");
+        config.put("params", params);
+
+        Periodic.JobStorage.persist((GraphDatabaseAPI) db, "repeat-params", "MERGE (person:Person {name: {valueName}})", 3, config);
+        Map<String, Map<String, Map<String, Object>>> apocPeriodicAfterUpdate = Periodic.JobStorage.list(Periodic.JobStorage.getProperties((GraphDatabaseAPI) db));
+        assertNotNull(apocPeriodicAfterUpdate);
+        assertFalse(apocPeriodicAfterUpdate.isEmpty());
+
+        Map<String, Map<String, Object>> jobsAfterUpdate = apocPeriodicAfterUpdate.get(Periodic.JobStorage.JOBS);
+        assertNotNull(jobsAfterUpdate);
+        assertFalse(jobsAfterUpdate.isEmpty());
+
+        Map<String, Object> dataJobAfterUpdate = jobsAfterUpdate.get("repeat-params");
+        assertNotNull(dataJobAfterUpdate);
+        assertFalse(dataJobAfterUpdate.isEmpty());
+        assertTrue(dataJobAfterUpdate.containsKey("statement"));
+        assertTrue(dataJobAfterUpdate.containsKey("rate"));
+        assertTrue(dataJobAfterUpdate.containsKey("config"));
+
+        assertEquals("MERGE (person:Person {name: {valueName}})", dataJobAfterUpdate.get("statement"));
+        assertEquals(3L, dataJobAfterUpdate.get("rate"));
+
+        assertEquals(config, dataJobAfterUpdate.get("config"));
+
+        Periodic.JobStorage.remove((GraphDatabaseAPI) db, "repeat-params");
     }
 }

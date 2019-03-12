@@ -3,6 +3,7 @@ package apoc;
 import apoc.custom.CypherProcedures;
 import apoc.cypher.CypherInitializer;
 import apoc.index.IndexUpdateTransactionEventHandler;
+import apoc.periodic.Periodic;
 import apoc.trigger.Trigger;
 import apoc.ttl.TTLLifeCycle;
 import apoc.util.ApocUrlStreamHandlerFactory;
@@ -63,6 +64,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
 
         private IndexUpdateTransactionEventHandler.LifeCycle indexUpdateLifeCycle;
         private CypherProcedures.CustomProcedureStorage customProcedureStorage;
+        private Periodic.JobStorage jobStorage;
 
         public ApocLifecycle(LogService log, GraphDatabaseAPI db, Dependencies dependencies) {
             this.log = log;
@@ -92,6 +94,9 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
             AvailabilityGuard availabilityGuard = dependencies.availabilityGuard();
             availabilityGuard.addListener(customProcedureStorage);
             availabilityGuard.addListener(new CypherInitializer(db, log.getUserLog(CypherInitializer.class)));
+
+            jobStorage = new Periodic.JobStorage(db, log.getUserLog(Periodic.class));
+            availabilityGuard.addListener(jobStorage);
         }
 
         public void registerCustomProcedures() {
