@@ -1,11 +1,13 @@
 package apoc.load.util;
 
+import apoc.security.credentials.Credential;
 import org.apache.commons.lang.StringUtils;
 
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author ab-Larus
@@ -40,6 +42,20 @@ public class LoadJdbcConfig {
         if (!credentials.getOrDefault("user", StringUtils.EMPTY).equals(StringUtils.EMPTY) && !credentials.getOrDefault("password", StringUtils.EMPTY).equals(StringUtils.EMPTY)) {
             return new Credentials(credentials.get("user"), credentials.get("password"));
         } else {
+            if(!credentials.getOrDefault("context", StringUtils.EMPTY).equals(StringUtils.EMPTY)){
+                String credentialContext = credentials.get("context");
+
+                Map<String, Map<String, Object>> credential = Credential.CREDENTIAL_STORAGE.readData().get(Credential.CREDENTIALS);
+
+                Map<String, Object> usernamePassword = credential.get(credentialContext);
+
+                if(usernamePassword != null && !usernamePassword.isEmpty()) {
+
+                    return new Credentials(credential.get(credentialContext).get("username").toString(), credential.get(credentialContext).get("password").toString());
+                }
+                throw new IllegalArgumentException("Cannot find credential from context " + credentialContext);
+            }
+
             throw new IllegalArgumentException("In config param credentials must be passed both user and password.");
         }
     }

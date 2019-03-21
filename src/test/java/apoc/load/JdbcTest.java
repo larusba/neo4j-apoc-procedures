@@ -1,27 +1,27 @@
 package apoc.load;
 
 import apoc.ApocConfiguration;
+import apoc.security.credentials.Credential;
 import apoc.util.TestUtil;
 import apoc.util.Util;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.QueryExecutionException;
-import org.neo4j.graphdb.Relationship;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import java.sql.*;
-import java.time.*;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Calendar;
-import java.util.Collections;
-import java.util.List;
 
 import static apoc.util.MapUtil.map;
 import static apoc.util.TestUtil.testCall;
 import static apoc.util.TestUtil.testResult;
-import static java.util.Collections.emptyList;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
@@ -47,7 +47,7 @@ public class JdbcTest {
         db = TestUtil.apocGraphDatabaseBuilder().newGraphDatabase();
         ApocConfiguration.initialize((GraphDatabaseAPI)db);
         ApocConfiguration.addToConfig(map("jdbc.derby.url","jdbc:derby:derbyDB"));
-        TestUtil.registerProcedure(db,Jdbc.class);
+        TestUtil.registerProcedure(db, Credential.class, Jdbc.class);
         createPersonTableAndData();
     }
 
@@ -165,6 +165,12 @@ public class JdbcTest {
     @Test
     public void testLoadJdbcWithSpecialCharWithAuthentication() {
         db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{user:'apoc',password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB")).next();
+    }
+
+    @Test
+    public void testLoadJdbcWithSpecialCharWithStorageAuthentication() {
+        db.execute("CALL apoc.security.credentials.set('derbyConn', 'apoc', 'Ap0c!#Db')");
+        db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{context:'derbyConn'}})", Util.map("url","jdbc:derby:derbyDB")).next();
     }
 
     @Test

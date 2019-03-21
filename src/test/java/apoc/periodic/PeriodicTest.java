@@ -3,10 +3,11 @@ package apoc.periodic;
 import apoc.load.Jdbc;
 import apoc.util.MapUtil;
 import apoc.util.TestUtil;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.neo4j.graphdb.*;
+import org.junit.*;
+import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.QueryExecutionException;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.api.KernelTransactions;
@@ -15,12 +16,11 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static apoc.util.TestUtil.*;
+import static apoc.util.TestUtil.testCall;
+import static apoc.util.TestUtil.testResult;
 import static apoc.util.Util.map;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.*;
@@ -48,7 +48,7 @@ public class PeriodicTest {
     public void testSubmitStatement() throws Exception {
         String callList = "CALL apoc.periodic.list()";
         // force pre-caching the queryplan
-System.out.println("call list" + db.execute(callList).resultAsString());
+        System.out.println("call list" + db.execute(callList).resultAsString());
         assertFalse(db.execute(callList).hasNext());
 
         testCall(db, "CALL apoc.periodic.submit('foo','create (:Foo)')",

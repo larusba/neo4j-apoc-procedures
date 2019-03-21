@@ -4,6 +4,7 @@ import apoc.custom.CypherProcedures;
 import apoc.cypher.CypherInitializer;
 import apoc.index.IndexUpdateTransactionEventHandler;
 import apoc.periodic.Periodic;
+import apoc.security.credentials.Credential;
 import apoc.trigger.Trigger;
 import apoc.ttl.TTLLifeCycle;
 import apoc.util.ApocUrlStreamHandlerFactory;
@@ -97,6 +98,8 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
 
             jobStorage = new Periodic.JobStorage(db, log.getUserLog(Periodic.class));
             availabilityGuard.addListener(jobStorage);
+
+            Credential.CREDENTIAL_STORAGE = Credential.CredentialStorage.getInstance(db);
         }
 
         public void registerCustomProcedures() {
@@ -123,6 +126,9 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
                 } catch(Exception e) {
                     userLog.warn("Error stopping index update service",e);
                 }
+
+            Credential.CredentialStorage.destroy();
+            Credential.CREDENTIAL_STORAGE = null;
         }
 
     }
