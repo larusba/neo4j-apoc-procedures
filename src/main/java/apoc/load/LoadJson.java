@@ -15,7 +15,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.stream.Stream;
 
-public class LoadJson {
+public class    LoadJson {
 
     private static final String AUTH_HEADER_KEY = "Authorization";
     private static final String LOAD_TYPE = "json";

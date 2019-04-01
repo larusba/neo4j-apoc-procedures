@@ -135,6 +135,7 @@ public class ExportGraphMLTest {
         if (!testName.getMethodName().endsWith(TEST_WITH_NO_IMPORT)) {
             builder.setConfig("apoc.import.file.enabled", "true");
         }
+        builder.setConfig("apoc.import.file.use_neo4j_config", "false");
         db = builder.newGraphDatabase();
         TestUtil.registerProcedure(db, ExportGraphML.class, Graphs.class);
         db.execute("CREATE (f:Foo:Foo2:Foo0 {name:'foo', born:Date('2018-10-10'), place:point({ longitude: 56.7, latitude: 12.78, height: 100 })})-[:KNOWS]->(b:Bar {name:'bar',age:42, place:point({ longitude: 56.7, latitude: 12.78})}),(c:Bar {age:12,values:[1,2,3]})").close();

@@ -33,6 +33,7 @@ public class LoadJsonTest {
                 .setConfig("apoc.import.file.enabled","true")
                 .setConfig("apoc.json.zip.url","https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.zip?raw=true!person.json")
                 .setConfig("apoc.json.simpleJson.url", url.toString())
+                .setConfig("apoc.import.file.use_neo4j_config", "false")
                 .newGraphDatabase();
         TestUtil.registerProcedure(db, LoadJson.class);
     }

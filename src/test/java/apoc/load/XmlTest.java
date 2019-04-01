@@ -56,7 +56,9 @@ public class XmlTest {
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig("apoc.import.file.enabled", "true").newGraphDatabase();
+        db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig("apoc.import.file.enabled", "true")
+                .setConfig("apoc.import.file.use_neo4j_config", "false")
+                .newGraphDatabase();
         TestUtil.registerProcedure(db, Xml.class);
     }
 
