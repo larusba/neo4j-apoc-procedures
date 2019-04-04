@@ -32,6 +32,7 @@ import org.neo4j.values.virtual.MapValue;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static apoc.util.Util.map;
 import static java.util.Collections.singletonList;
@@ -96,6 +97,19 @@ public class CypherProcedures {
             throw new IllegalStateException("Error registering function "+name+", see log.");
         }
         CustomProcedureStorage.storeFunction(api, name, statement, output, inputs, forceSingle, description);
+    }
+
+    @Procedure(value = "apoc.custom.list", mode = Mode.READ)
+    public Stream<CustomProcedureInfo> list(){
+        List<CustomProcedureInfo> list = new ArrayList<>();
+        CustomProcedureStorage.list(api).forEach( (customType, customStatement) ->
+                customStatement.forEach((name, value) -> {
+                    String type = customType == PROCEDURES ? "procedure" : "function";
+                    String outputs = customType == PROCEDURES ? "outputs" : "output";
+                    list.add(new CustomProcedureInfo(type, name, value.get("statement"), value.get(outputs), value.get("inputs"), value.get("description")));
+                })
+        );
+        return list.stream();
     }
 
     static class CustomStatementRegistry {
@@ -306,6 +320,24 @@ public class CypherProcedures {
                 params.put(inputs.get(i).get(0), ((AnyValue)input[i]).map(mapper));
             }
             return params;
+        }
+    }
+
+    public static class CustomProcedureInfo {
+        public String type;
+        public String name;
+        public Object statement;
+        public Object outputs;
+        public Object inputs;
+        public Object description;
+
+        public CustomProcedureInfo(String type, String name, Object statement, Object outputs, Object inputs, Object description){
+            this.type = type;
+            this.name = name;
+            this.statement = statement;
+            this.outputs = outputs;
+            this.inputs = inputs;
+            this.description = description;
         }
     }
 

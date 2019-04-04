@@ -12,7 +12,7 @@ import org.neo4j.test.TestGraphDatabaseFactory;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * @author mh
@@ -143,5 +143,42 @@ public class CypherProceduresTest {
         TestUtil.testCall(db, "return custom.answer() as row", (row) -> assertEquals(42L, ((Map)((List)row.get("row")).get(0)).get("answer")));
         Map<String, Map<String, Object>> functions = CypherProcedures.CustomProcedureStorage.list((GraphDatabaseAPI) db).get(CypherProcedures.FUNCTIONS);
         assertEquals("Answer to the Ultimate Question of Life, the Universe, and Everything", functions.get("answer").get("description"));
+    }
+
+    @Test
+    public void listAllProceduresAndFunctions() throws Exception {
+        db.execute("call apoc.custom.asProcedure('answer','RETURN $input as answer','read',[['answer','number']],[['input','int','42']], 'Answer to the Ultimate Question of Life, the Universe, and Everything')");
+        db.execute("call apoc.custom.asFunction('answer','RETURN $input as answer','long', [['input','number']], false, 'Answer to the Ultimate Question of Life, the Universe, and Everything')");
+        TestUtil.testResult(db, "call apoc.custom.list", (row) -> {
+            assertTrue(row.hasNext());
+            while (row.hasNext()){
+                Map<String, Object> value = row.next();
+                assertTrue(value.containsKey("type"));
+                assertTrue("function".equals(value.get("type")) || "procedure".equals(value.get("type")));
+
+                if("procedure".equals(value.get("type"))){
+                    assertEquals("answer", value.get("name"));
+                    assertEquals("[[answer, number]]", value.get("outputs").toString());
+                    assertEquals("[[input, int, 42]]", value.get("inputs").toString());
+                    assertEquals("Answer to the Ultimate Question of Life, the Universe, and Everything", value.get("description").toString());
+                }
+
+                if("function".equals(value.get("type"))){
+                    assertEquals("answer", value.get("name"));
+                    assertEquals("long", value.get("outputs").toString());
+                    assertEquals("[[input, number]]", value.get("inputs").toString());
+                    assertEquals("Answer to the Ultimate Question of Life, the Universe, and Everything", value.get("description").toString());
+                }
+            }
+            
+        });
+    }
+
+    @Test
+    public void listAllWithNoProceduresAndFunctions() throws Exception {
+        db.execute("call apoc.custom.list");
+        TestUtil.testResult(db, "call apoc.custom.list", (row) ->
+                assertFalse(row.hasNext())
+        );
     }
 }
