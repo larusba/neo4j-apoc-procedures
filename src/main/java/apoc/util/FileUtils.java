@@ -157,7 +157,7 @@ public class FileUtils {
             boolean enabled = isImportUsingNeo4jConfig();
             if (enabled) {
                 String importDir = getConfiguredImportDirectory();
-                File file = new File(importDir, fileName);
+                File file = new File(fileName);
                 outputStream = new FileOutputStream(file);
             } else {
                 URI uri = URI.create(fileName);

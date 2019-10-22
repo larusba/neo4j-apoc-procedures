@@ -17,7 +17,12 @@ import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.procedure.*;
 
 import javax.xml.stream.XMLStreamException;
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +61,7 @@ public class ExportGraphML {
     }
     @Procedure
     @Description("apoc.export.graphml.all(file,config) - exports whole database as graphml to the provided file")
-    public Stream<ProgressInfo> all(@Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
+    public Stream<ExportResult> all(@Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
 
         String source = String.format("database: nodes(%d), rels(%d)", Util.nodeCount(db), Util.relCount(db));
         return exportGraphML(fileName, source, new DatabaseSubGraph(db), new ExportConfig(config));
@@ -64,14 +69,14 @@ public class ExportGraphML {
 
     @Procedure
     @Description("apoc.export.graphml.data(nodes,rels,file,config) - exports given nodes and relationships as graphml to the provided file")
-    public Stream<ProgressInfo> data(@Name("nodes") List<Node> nodes, @Name("rels") List<Relationship> rels, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
+    public Stream<ExportResult> data(@Name("nodes") List<Node> nodes, @Name("rels") List<Relationship> rels, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
 
         String source = String.format("data: nodes(%d), rels(%d)", nodes.size(), rels.size());
         return exportGraphML(fileName, source, new NodesAndRelsSubGraph(db, nodes, rels), new ExportConfig(config));
     }
     @Procedure
     @Description("apoc.export.graphml.graph(graph,file,config) - exports given graph object as graphml to the provided file")
-    public Stream<ProgressInfo> graph(@Name("graph") Map<String,Object> graph, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
+    public Stream<ExportResult> graph(@Name("graph") Map<String,Object> graph, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
 
         Collection<Node> nodes = (Collection<Node>) graph.get("nodes");
         Collection<Relationship> rels = (Collection<Relationship>) graph.get("relationships");
@@ -81,7 +86,7 @@ public class ExportGraphML {
 
     @Procedure
     @Description("apoc.export.graphml.query(query,file,config) - exports nodes and relationships from the cypher statement as graphml to the provided file")
-    public Stream<ProgressInfo> query(@Name("query") String query, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
+    public Stream<ExportResult> query(@Name("query") String query, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
         ExportConfig c = new ExportConfig(config);
         Result result = db.execute(query);
         SubGraph graph = CypherResultSubGraph.from(result, db, c.getRelsInBetween());
@@ -90,7 +95,7 @@ public class ExportGraphML {
         return exportGraphML(fileName, source, graph, c);
     }
 
-    private Stream<ProgressInfo> exportGraphML(@Name("file") String fileName, String source, SubGraph graph, ExportConfig config) throws Exception, XMLStreamException {
+    private Stream<ExportResult> exportGraphML(@Name("file") String fileName, String source, SubGraph graph, ExportConfig config) throws Exception, XMLStreamException {
         if (fileName != null) checkWriteAllowed();
         ProgressReporter reporter = new ProgressReporter(null, null, new ProgressInfo(fileName, source, "graphml"));
         PrintWriter printWriter = getPrintWriter(fileName, null);
@@ -98,6 +103,28 @@ public class ExportGraphML {
         exporter.write(graph, printWriter, reporter, config);
         printWriter.flush();
         printWriter.close();
-        return reporter.stream();
+
+        StringBuilder contentBuilder = new StringBuilder();
+        try (Stream<String> stream = Files.lines( Paths.get(fileName), StandardCharsets.UTF_8))
+        {
+            stream.forEach(s -> contentBuilder.append(s).append("\n"));
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+        ExportResult res = new ExportResult(contentBuilder.toString());
+
+        return Stream.of(res);
+    }
+
+    public class ExportResult {
+
+        public String content;
+
+        public ExportResult (String content) {
+            this.content = content;
+        }
     }
 }
